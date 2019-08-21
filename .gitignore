@@ -1,0 +1,8 @@
+trixs/data/*
+trixs/data
+test/.pytest*
+trixs/Comparator_draft.ipynb
+git_clone.sh
+*__pycache*
+*.DS*
+*ipynb_checkpoints*
