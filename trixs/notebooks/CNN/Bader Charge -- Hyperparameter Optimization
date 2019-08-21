@@ -1,0 +1,1498 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Goal: Perform a hyperparameter sweep over a set of CNN parameters for regression of Bader charges\n",
+    "\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:32.049932Z",
+     "start_time": "2019-08-12T21:19:32.045519Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "target_pair = ('Co','O')\n",
+    "target_elements_groups = (('Co','O'),(\"Fe\",\"O\"),('V','O'),('Ni','O'),\n",
+    "                           ('Cu','O'))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Import statements"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:32.069172Z",
+     "start_time": "2019-08-12T21:19:32.051954Z"
+    },
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 890
+    },
+    "colab_type": "code",
+    "executionInfo": {
+     "elapsed": 17686,
+     "status": "ok",
+     "timestamp": 1565227362441,
+     "user": {
+      "displayName": "Matthew Carbone",
+      "photoUrl": "https://lh5.googleusercontent.com/-ua_pIWuZups/AAAAAAAAAAI/AAAAAAAACFE/asTymiafjII/s64/photo.jpg",
+      "userId": "02950552987981797974"
+     },
+     "user_tz": 240
+    },
+    "id": "FYBAxGhpRUAA",
+    "outputId": "13fbeba4-21f3-414b-b5eb-39d8f51833b4"
+   },
+   "outputs": [],
+   "source": [
+    "import numpy as np\n",
+    "import pandas as pd\n",
+    "import os\n",
+    "\n",
+    "# Machine learning:\n",
+    "import keras\n",
+    "from keras.models import Sequential\n",
+    "from keras.layers import Dense, Activation, Dropout, Conv1D, \\\n",
+    "  MaxPooling1D, Flatten\n",
+    "from keras import regularizers\n",
+    "from keras import optimizers\n",
+    "import keras.backend as K\n",
+    "from sklearn.model_selection import train_test_split\n",
+    "from sklearn.preprocessing import StandardScaler\n",
+    "\n",
+    "import tensorflow as tf\n",
+    "\n",
+    "# Plotting\n",
+    "import matplotlib.pyplot as plt\n",
+    "%config InlineBackend.figure_format = 'svg'\n",
+    "\n",
+    "import json\n",
+    "import talos as ta\n",
+    "##from google.colab import drive\n",
+    "#drive.mount('/content/drive')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:32.388992Z",
+     "start_time": "2019-08-12T21:19:32.071812Z"
+    },
+    "colab": {},
+    "colab_type": "code",
+    "id": "piQbmjWMRl6k"
+   },
+   "outputs": [],
+   "source": [
+    "data = []\n",
+    "for line in open('./{}_{}_XY.json'.format(target_pair[0],target_pair[1]), 'r'):\n",
+    "    data.append(json.loads(line))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:32.404849Z",
+     "start_time": "2019-08-12T21:19:32.392010Z"
+    },
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 68
+    },
+    "colab_type": "code",
+    "executionInfo": {
+     "elapsed": 3138,
+     "status": "ok",
+     "timestamp": 1565227362893,
+     "user": {
+      "displayName": "Matthew Carbone",
+      "photoUrl": "https://lh5.googleusercontent.com/-ua_pIWuZups/AAAAAAAAAAI/AAAAAAAACFE/asTymiafjII/s64/photo.jpg",
+      "userId": "02950552987981797974"
+     },
+     "user_tz": 240
+    },
+    "id": "wsZ7omaAR3jh",
+    "outputId": "e2c34821-53f5-47d6-c760-00ceed9f653c"
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Total of 3174 data points\n",
+      "Keys are dict_keys(['E', 'mu', 'E0', 'k', 'mu0', 'chi', 'bader', 'coordination', 'one_hot_coord', 'metadata'])\n",
+      "All features same length: True\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(\"Total of %i data points\" % len(data))\n",
+    "print(\"Keys are %a\" % data[0].keys())\n",
+    "\n",
+    "# Using mu here not mu0\n",
+    "all_feature_lens = [len(data[ii]['mu']) == len(data[0]['mu'])\n",
+    "                    for ii in range(len(data))]\n",
+    "print(\"All features same length: %s\" % np.all(np.array(all_feature_lens)))\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "gdJTLEWWXyzL"
+   },
+   "source": [
+    "## Regression Problem"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:32.504823Z",
+     "start_time": "2019-08-12T21:19:32.407392Z"
+    },
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 34
+    },
+    "colab_type": "code",
+    "executionInfo": {
+     "elapsed": 452,
+     "status": "ok",
+     "timestamp": 1565227470135,
+     "user": {
+      "displayName": "Matthew Carbone",
+      "photoUrl": "https://lh5.googleusercontent.com/-ua_pIWuZups/AAAAAAAAAAI/AAAAAAAACFE/asTymiafjII/s64/photo.jpg",
+      "userId": "02950552987981797974"
+     },
+     "user_tz": 240
+    },
+    "id": "qThZv-YCTJbu",
+    "outputId": "11c71458-f31b-404a-c517-ad63e0fb6cb4"
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "(1803, 100) (1803,)\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Generate the features and targets for the classification problem\n",
+    "to_ignore = [ii for ii in range(len(data)) if data[ii]['bader'] is None]\n",
+    "features = np.array([data[ii]['mu'] for ii in range(len(data)) if ii not in to_ignore])\n",
+    "targets = np.array([data[ii]['bader'] for ii in range(len(data)) if ii not in to_ignore])\n",
+    "targets.reshape(len(targets), 1)\n",
+    "print(features.shape, targets.shape)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:32.519412Z",
+     "start_time": "2019-08-12T21:19:32.507477Z"
+    },
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 68
+    },
+    "colab_type": "code",
+    "executionInfo": {
+     "elapsed": 365,
+     "status": "ok",
+     "timestamp": 1565227473450,
+     "user": {
+      "displayName": "Matthew Carbone",
+      "photoUrl": "https://lh5.googleusercontent.com/-ua_pIWuZups/AAAAAAAAAAI/AAAAAAAACFE/asTymiafjII/s64/photo.jpg",
+      "userId": "02950552987981797974"
+     },
+     "user_tz": 240
+    },
+    "id": "_64SdfQ-TQpL",
+    "outputId": "6c77bf3d-e7e5-4265-8df2-5de564da5fc8"
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "training    (1459, 100) ~ (1459,)\n",
+      "validation  (163, 100) ~ (163,)\n",
+      "testing     (181, 100) ~ (181,)\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Generate train/validate/test splits\n",
+    "RANDSTATE=555\n",
+    "x_train, x_test, y_train, y_test = \\\n",
+    "  train_test_split(features, targets, test_size=0.1,\n",
+    "                   random_state=RANDSTATE)\n",
+    "orig_x = x_train\n",
+    "x_train, x_valid, y_train, y_valid = \\\n",
+    "  train_test_split(x_train, y_train, test_size=0.1,\n",
+    "                   random_state=RANDSTATE)\n",
+    "print(\"training    %s ~ %s\"\n",
+    "      % ((x_train.shape), (y_train.shape)))\n",
+    "print(\"validation  %s ~ %s\"\n",
+    "      % ((x_valid.shape), (y_valid.shape)))\n",
+    "print(\"testing     %s ~ %s\"\n",
+    "      % ((x_test.shape), (y_test.shape)))\n",
+    "\n",
+    "# Want to normalize the targets first\n",
+    "y_train = y_train/np.max(y_train, keepdims=True)\n",
+    "y_valid = y_valid/np.max(y_valid, keepdims=True)\n",
+    "y_test = y_test/np.max(y_test, keepdims=True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:32.552022Z",
+     "start_time": "2019-08-12T21:19:32.521216Z"
+    },
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 187
+    },
+    "colab_type": "code",
+    "executionInfo": {
+     "elapsed": 345,
+     "status": "ok",
+     "timestamp": 1565227477221,
+     "user": {
+      "displayName": "Matthew Carbone",
+      "photoUrl": "https://lh5.googleusercontent.com/-ua_pIWuZups/AAAAAAAAAAI/AAAAAAAACFE/asTymiafjII/s64/photo.jpg",
+      "userId": "02950552987981797974"
+     },
+     "user_tz": 240
+    },
+    "id": "WvUXS2y8dR9e",
+    "outputId": "57092224-2404-4af6-969d-6d3f1d1c9bd4"
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "~~~~~~~~~~~~ Mean +/- Stdev before ~~~~~~~~~~~~~~\n",
+      "-------------------------------------------------\n",
+      "Train features 0.558 +/- 0.152\n",
+      "Valid features 0.559 +/- 0.146\n",
+      "Test features  0.555 +/- 0.147\n",
+      "~~~~~~~~~~~~~ Mean +/- Stdev after ~~~~~~~~~~~~~~\n",
+      "-------------------------------------------------\n",
+      "Train features -0.000 +/- 0.990\n",
+      "Valid features -0.002 +/- 0.931\n",
+      "Test features  -0.022 +/- 0.952\n"
+     ]
+    }
+   ],
+   "source": [
+    "# The values of the input features vary wildly between different\n",
+    "# feature types, over different orders of magnitude. Thus, we\n",
+    "# must scale each feature to zero mean and unit variance to\n",
+    "# avoid problematic issues during training. We fit only on the\n",
+    "# testing data, and execute that same scaling on the validation\n",
+    "# and testing data to ensure we do not accidentally bias the\n",
+    "# latter two data sets. Sanity check: printing out the feature/\n",
+    "# target means before and after (averaged over all features/\n",
+    "# targets just to get an idea).\n",
+    "\n",
+    "train_feature_mean = np.mean(np.mean(x_train, axis=0))\n",
+    "train_feature_std = np.mean(np.std(x_train, axis=0))\n",
+    "\n",
+    "valid_feature_mean = np.mean(np.mean(x_valid, axis=0))\n",
+    "valid_feature_std = np.mean(np.std(x_valid, axis=0))\n",
+    "\n",
+    "test_feature_mean = np.mean(np.mean(x_test, axis=0))\n",
+    "test_feature_std = np.mean(np.std(x_test, axis=0))\n",
+    "\n",
+    "\n",
+    "print(\"~~~~~~~~~~~~ Mean +/- Stdev before ~~~~~~~~~~~~~~\")\n",
+    "print(\"-------------------------------------------------\")\n",
+    "print(\"Train features %.03f +/- %.03f\"\n",
+    "      % (train_feature_mean, train_feature_std))\n",
+    "print(\"Valid features %.03f +/- %.03f\"\n",
+    "      % (valid_feature_mean, valid_feature_std))\n",
+    "print(\"Test features  %.03f +/- %.03f\"\n",
+    "      % (test_feature_mean, test_feature_std))\n",
+    "\n",
+    "\n",
+    "# Generate a feature and target scaler\n",
+    "feature_scaler = StandardScaler().fit(x_train)\n",
+    "\n",
+    "# Utilize that scaler on the datasets\n",
+    "x_train = feature_scaler.transform(x_train)\n",
+    "x_valid = feature_scaler.transform(x_valid)\n",
+    "x_test = feature_scaler.transform(x_test)\n",
+    "\n",
+    "train_feature_mean = np.mean(np.mean(x_train, axis=0))\n",
+    "train_feature_std = np.mean(np.std(x_train, axis=0))\n",
+    "\n",
+    "valid_feature_mean = np.mean(np.mean(x_valid, axis=0))\n",
+    "valid_feature_std = np.mean(np.std(x_valid, axis=0))\n",
+    "\n",
+    "test_feature_mean = np.mean(np.mean(x_test, axis=0))\n",
+    "test_feature_std = np.mean(np.std(x_test, axis=0))\n",
+    "\n",
+    "print(\"~~~~~~~~~~~~~ Mean +/- Stdev after ~~~~~~~~~~~~~~\")\n",
+    "print(\"-------------------------------------------------\")\n",
+    "print(\"Train features %.03f +/- %.03f\"\n",
+    "      % (train_feature_mean, train_feature_std))\n",
+    "print(\"Valid features %.03f +/- %.03f\"\n",
+    "      % (valid_feature_mean, valid_feature_std))\n",
+    "print(\"Test features  %.03f +/- %.03f\"\n",
+    "      % (test_feature_mean, test_feature_std))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:32.567349Z",
+     "start_time": "2019-08-12T21:19:32.556770Z"
+    },
+    "colab": {},
+    "colab_type": "code",
+    "id": "cQ4DlTXwWRTO"
+   },
+   "outputs": [],
+   "source": [
+    "def regression_model(x_train, y_train, x_val, y_val, params):\n",
+    "\n",
+    "    dropout = params['dropout']\n",
+    "    act = params['activation_function']\n",
+    "    optimizer = params['optimizer']\n",
+    "\n",
+    "    model = Sequential()\n",
+    "\n",
+    "    if params['cnn']:\n",
+    "        x_train = np.expand_dims(x_train, axis=-1)\n",
+    "        x_val = np.expand_dims(x_val, axis=-1)\n",
+    "        model.add(Conv1D(kernel_size=params['kernel'],\n",
+    "                         filters=params['n_filters'],\n",
+    "                         strides=params['strides'], padding='valid',\n",
+    "                         activation=act,\n",
+    "                         input_shape=(x_train.shape[1], 1)))\n",
+    "        model.add(MaxPooling1D(pool_size=params['pool_size'],\n",
+    "                               strides=None, padding='valid'))\n",
+    "        model.add(Flatten())\n",
+    "        model.add(Dense(params['layer0'], activation=act))\n",
+    "    else:\n",
+    "        model.add(Dense(params['layer0'], activation=act,\n",
+    "                        input_shape=(x_train.shape[1],)))\n",
+    "    model.add(Dropout(dropout))\n",
+    "\n",
+    "    model.add(Dense(params['layer1'], activation=act))\n",
+    "    model.add(Dropout(dropout))\n",
+    "\n",
+    "    model.add(Dense(params['layer2'], activation=act))\n",
+    "    model.add(Dropout(dropout))\n",
+    "\n",
+    "    model.add(Dense(1, activation='linear'))\n",
+    "\n",
+    "    model.compile(loss=params['loss_function'], optimizer=optimizer)\n",
+    "\n",
+    "    history = model.fit(x_train, y_train,\n",
+    "                      batch_size=params['batch_size'],\n",
+    "                      epochs=params['epochs'],\n",
+    "                      validation_data=[x_val, y_val],\n",
+    "                      verbose=0,\n",
+    "                      shuffle=True)\n",
+    "\n",
+    "    return history, model"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:32.580884Z",
+     "start_time": "2019-08-12T21:19:32.571241Z"
+    },
+    "colab": {},
+    "colab_type": "code",
+    "id": "oAwK_oFzd2vC"
+   },
+   "outputs": [],
+   "source": [
+    "# Steve, play around with this a bit! Also, I would be careful: the accuracy\n",
+    "# is not a great metric here if you have major class imbalances! :)\n",
+    "params = {\n",
+    "    'dropout': [.1],\n",
+    "    'layer0': [90],\n",
+    "    'layer1': [60],\n",
+    "    'layer2': [30],\n",
+    "    'activation_function': ['relu','elu','selu'],\n",
+    "    'optimizer': ['adam'],\n",
+    "    'cnn': [True],\n",
+    "    'kernel': [6,8,10,12,14,16],\n",
+    "    'n_filters': [8,10,12,14,16],\n",
+    "    'strides': [1],\n",
+    "    'pool_size': [2,3],\n",
+    "    'loss_function': ['mae'],\n",
+    "    'batch_size': [32],\n",
+    "    'epochs': [25]\n",
+    "}"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:32.590867Z",
+     "start_time": "2019-08-12T21:19:32.585443Z"
+    },
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 187
+    },
+    "colab_type": "code",
+    "executionInfo": {
+     "elapsed": 17799,
+     "status": "ok",
+     "timestamp": 1565227655583,
+     "user": {
+      "displayName": "Matthew Carbone",
+      "photoUrl": "https://lh5.googleusercontent.com/-ua_pIWuZups/AAAAAAAAAAI/AAAAAAAACFE/asTymiafjII/s64/photo.jpg",
+      "userId": "02950552987981797974"
+     },
+     "user_tz": 240
+    },
+    "id": "b1CWAAGVpDSb",
+    "outputId": "3d4d0b7c-03f2-4b08-f025-6cbe7bc4aafa"
+   },
+   "outputs": [],
+   "source": [
+    "##t = ta.Scan(x_train, y_train, x_val=x_valid, y_val=y_valid,\n",
+    "#            model=regression_model, params=params)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:32.598370Z",
+     "start_time": "2019-08-12T21:19:32.593931Z"
+    },
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 510
+    },
+    "colab_type": "code",
+    "executionInfo": {
+     "elapsed": 353,
+     "status": "ok",
+     "timestamp": 1565228508631,
+     "user": {
+      "displayName": "Matthew Carbone",
+      "photoUrl": "https://lh5.googleusercontent.com/-ua_pIWuZups/AAAAAAAAAAI/AAAAAAAACFE/asTymiafjII/s64/photo.jpg",
+      "userId": "02950552987981797974"
+     },
+     "user_tz": 240
+    },
+    "id": "4jAEun7upzL4",
+    "outputId": "6ebbc3de-1b9d-455f-f43f-c2132e0326e7"
+   },
+   "outputs": [],
+   "source": [
+    "from IPython.display import display, HTML\n",
+    "\n",
+    "pd.set_option('display.max_columns', 30)\n",
+    "pd.set_option('display.width',500)\n",
+    "#print(t.data.sort_values(by='val_loss', ascending=True))\n",
+    "#display(HTML(t.data.sort_values(by='val_loss', ascending=True).to_html()))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:32.606785Z",
+     "start_time": "2019-08-12T21:19:32.601566Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "params_grad = {\n",
+    "    'dropout': .1,\n",
+    "    'layer0':90,\n",
+    "    'layer1':60,\n",
+    "    'layer2': 30,\n",
+    "    'activation_function': 'relu',\n",
+    "    'optimizer': 'adam',\n",
+    "    'cnn': True,\n",
+    "    'kernel': 8,\n",
+    "    'n_filters': 8,\n",
+    "    'strides': 1,\n",
+    "    'pool_size': 2,\n",
+    "    'loss_function': 'mse',\n",
+    "    'batch_size': 32,\n",
+    "    'epochs': 40\n",
+    "}"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:50.026398Z",
+     "start_time": "2019-08-12T21:19:32.609044Z"
+    },
+    "colab": {},
+    "colab_type": "code",
+    "id": "KjBveB1O1PRq"
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "WARNING:tensorflow:From /Users/steventorrisi/anaconda3/lib/python3.6/site-packages/tensorflow/python/framework/op_def_library.py:263: colocate_with (from tensorflow.python.framework.ops) is deprecated and will be removed in a future version.\n",
+      "Instructions for updating:\n",
+      "Colocations handled automatically by placer.\n",
+      "WARNING:tensorflow:From /Users/steventorrisi/anaconda3/lib/python3.6/site-packages/keras/backend/tensorflow_backend.py:3445: calling dropout (from tensorflow.python.ops.nn_ops) with keep_prob is deprecated and will be removed in a future version.\n",
+      "Instructions for updating:\n",
+      "Please use `rate` instead of `keep_prob`. Rate should be set to `rate = 1 - keep_prob`.\n",
+      "WARNING:tensorflow:From /Users/steventorrisi/anaconda3/lib/python3.6/site-packages/tensorflow/python/ops/math_ops.py:3066: to_int32 (from tensorflow.python.ops.math_ops) is deprecated and will be removed in a future version.\n",
+      "Instructions for updating:\n",
+      "Use tf.cast instead.\n"
+     ]
+    }
+   ],
+   "source": [
+    "\n",
+    "history, the_model = regression_model(x_train,y_train,x_val=x_valid, y_val=y_valid,\n",
+    "                        params = params_grad)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:50.550172Z",
+     "start_time": "2019-08-12T21:19:50.029288Z"
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "<matplotlib.collections.PathCollection at 0x165d99748>"
+      ]
+     },
+     "execution_count": 18,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "image/svg+xml": [
+       "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>\n",
+       "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\n",
+       "  \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n",
+       "<!-- Created with matplotlib (http://matplotlib.org/) -->\n",
+       "<svg height=\"252.018125pt\" version=\"1.1\" viewBox=\"0 0 375.603125 252.018125\" width=\"375.603125pt\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n",
+       " <defs>\n",
+       "  <style type=\"text/css\">\n",
+       "*{stroke-linecap:butt;stroke-linejoin:round;}\n",
+       "  </style>\n",
+       " </defs>\n",
+       " <g id=\"figure_1\">\n",
+       "  <g id=\"patch_1\">\n",
+       "   <path d=\"M 0 252.018125 \n",
+       "L 375.603125 252.018125 \n",
+       "L 375.603125 0 \n",
+       "L 0 0 \n",
+       "z\n",
+       "\" style=\"fill:none;\"/>\n",
+       "  </g>\n",
+       "  <g id=\"axes_1\">\n",
+       "   <g id=\"patch_2\">\n",
+       "    <path d=\"M 30.103125 228.14 \n",
+       "L 364.903125 228.14 \n",
+       "L 364.903125 10.7 \n",
+       "L 30.103125 10.7 \n",
+       "z\n",
+       "\" style=\"fill:#ffffff;\"/>\n",
+       "   </g>\n",
+       "   <g id=\"PathCollection_1\">\n",
+       "    <defs>\n",
+       "     <path d=\"M 0 3 \n",
+       "C 0.795609 3 1.55874 2.683901 2.12132 2.12132 \n",
+       "C 2.683901 1.55874 3 0.795609 3 0 \n",
+       "C 3 -0.795609 2.683901 -1.55874 2.12132 -2.12132 \n",
+       "C 1.55874 -2.683901 0.795609 -3 0 -3 \n",
+       "C -0.795609 -3 -1.55874 -2.683901 -2.12132 -2.12132 \n",
+       "C -2.683901 -1.55874 -3 -0.795609 -3 0 \n",
+       "C -3 0.795609 -2.683901 1.55874 -2.12132 2.12132 \n",
+       "C -1.55874 2.683901 -0.795609 3 0 3 \n",
+       "z\n",
+       "\" id=\"md181c03b0e\" style=\"stroke:#1f77b4;\"/>\n",
+       "    </defs>\n",
+       "    <g clip-path=\"url(#p05ec3d78e5)\">\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"194.068882\" xlink:href=\"#md181c03b0e\" y=\"117.643085\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"207.049629\" xlink:href=\"#md181c03b0e\" y=\"111.869785\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"179.135591\" xlink:href=\"#md181c03b0e\" y=\"133.665724\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"130.107047\" xlink:href=\"#md181c03b0e\" y=\"159.817186\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"202.40701\" xlink:href=\"#md181c03b0e\" y=\"121.406355\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"210.213042\" xlink:href=\"#md181c03b0e\" y=\"109.90635\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"155.634716\" xlink:href=\"#md181c03b0e\" y=\"137.129907\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"242.787801\" xlink:href=\"#md181c03b0e\" y=\"116.534395\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"205.076507\" xlink:href=\"#md181c03b0e\" y=\"112.441537\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"182.00363\" xlink:href=\"#md181c03b0e\" y=\"132.079658\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"192.872064\" xlink:href=\"#md181c03b0e\" y=\"119.819653\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"122.293717\" xlink:href=\"#md181c03b0e\" y=\"173.705783\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"196.22995\" xlink:href=\"#md181c03b0e\" y=\"124.282197\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"210.676091\" xlink:href=\"#md181c03b0e\" y=\"116.378414\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"188.817348\" xlink:href=\"#md181c03b0e\" y=\"129.161486\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"203.211006\" xlink:href=\"#md181c03b0e\" y=\"117.567019\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"191.486762\" xlink:href=\"#md181c03b0e\" y=\"128.571088\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"192.897176\" xlink:href=\"#md181c03b0e\" y=\"130.709009\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"209.940666\" xlink:href=\"#md181c03b0e\" y=\"116.658281\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"191.102328\" xlink:href=\"#md181c03b0e\" y=\"119.39243\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"191.490531\" xlink:href=\"#md181c03b0e\" y=\"119.925237\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"186.273941\" xlink:href=\"#md181c03b0e\" y=\"128.027637\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"199.425775\" xlink:href=\"#md181c03b0e\" y=\"120.278876\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"191.516983\" xlink:href=\"#md181c03b0e\" y=\"120.16993\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"192.346749\" xlink:href=\"#md181c03b0e\" y=\"121.919856\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"200.002088\" xlink:href=\"#md181c03b0e\" y=\"118.183072\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"219.546807\" xlink:href=\"#md181c03b0e\" y=\"118.682449\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"172.413678\" xlink:href=\"#md181c03b0e\" y=\"127.137019\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"191.641469\" xlink:href=\"#md181c03b0e\" y=\"122.991629\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"220.2156\" xlink:href=\"#md181c03b0e\" y=\"114.25782\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"211.29085\" xlink:href=\"#md181c03b0e\" y=\"117.859768\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"170.789662\" xlink:href=\"#md181c03b0e\" y=\"124.306571\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"197.244329\" xlink:href=\"#md181c03b0e\" y=\"123.03626\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"200.470965\" xlink:href=\"#md181c03b0e\" y=\"115.851435\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"241.256811\" xlink:href=\"#md181c03b0e\" y=\"97.620346\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"196.727788\" xlink:href=\"#md181c03b0e\" y=\"126.792233\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"181.396463\" xlink:href=\"#md181c03b0e\" y=\"138.351942\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"198.758963\" xlink:href=\"#md181c03b0e\" y=\"121.357106\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"186.17144\" xlink:href=\"#md181c03b0e\" y=\"126.028172\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"209.643162\" xlink:href=\"#md181c03b0e\" y=\"114.003497\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"192.584635\" xlink:href=\"#md181c03b0e\" y=\"125.992087\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"120.538372\" xlink:href=\"#md181c03b0e\" y=\"172.481191\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"198.200865\" xlink:href=\"#md181c03b0e\" y=\"129.559026\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"210.676091\" xlink:href=\"#md181c03b0e\" y=\"116.087236\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"191.509135\" xlink:href=\"#md181c03b0e\" y=\"124.581913\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"201.633354\" xlink:href=\"#md181c03b0e\" y=\"119.457043\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"185.283867\" xlink:href=\"#md181c03b0e\" y=\"116.141906\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"231.796248\" xlink:href=\"#md181c03b0e\" y=\"102.026061\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"200.824603\" xlink:href=\"#md181c03b0e\" y=\"120.729035\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"191.014837\" xlink:href=\"#md181c03b0e\" y=\"126.897628\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"111.268553\" xlink:href=\"#md181c03b0e\" y=\"177.28421\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"232.165555\" xlink:href=\"#md181c03b0e\" y=\"99.641577\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"212.587632\" xlink:href=\"#md181c03b0e\" y=\"118.49175\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"199.751382\" xlink:href=\"#md181c03b0e\" y=\"122.953619\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"195.152946\" xlink:href=\"#md181c03b0e\" y=\"125.150758\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"117.889233\" xlink:href=\"#md181c03b0e\" y=\"171.656974\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"194.943115\" xlink:href=\"#md181c03b0e\" y=\"152.880318\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"191.946314\" xlink:href=\"#md181c03b0e\" y=\"128.940625\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"111.574308\" xlink:href=\"#md181c03b0e\" y=\"171.36908\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"209.595954\" xlink:href=\"#md181c03b0e\" y=\"114.726312\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"188.266062\" xlink:href=\"#md181c03b0e\" y=\"116.418159\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"236.073711\" xlink:href=\"#md181c03b0e\" y=\"97.442042\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"197.147872\" xlink:href=\"#md181c03b0e\" y=\"127.178556\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"185.948719\" xlink:href=\"#md181c03b0e\" y=\"128.231288\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"187.489902\" xlink:href=\"#md181c03b0e\" y=\"122.566456\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"196.734961\" xlink:href=\"#md181c03b0e\" y=\"117.607707\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"190.08907\" xlink:href=\"#md181c03b0e\" y=\"122.019737\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"203.211006\" xlink:href=\"#md181c03b0e\" y=\"117.667262\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"213.616363\" xlink:href=\"#md181c03b0e\" y=\"113.899892\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"197.753445\" xlink:href=\"#md181c03b0e\" y=\"122.13946\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"144.115024\" xlink:href=\"#md181c03b0e\" y=\"164.949282\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"237.822624\" xlink:href=\"#md181c03b0e\" y=\"109.152948\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"189.08448\" xlink:href=\"#md181c03b0e\" y=\"129.265453\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"184.529413\" xlink:href=\"#md181c03b0e\" y=\"125.043226\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"193.674019\" xlink:href=\"#md181c03b0e\" y=\"119.903778\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"197.480377\" xlink:href=\"#md181c03b0e\" y=\"124.582918\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"236.867278\" xlink:href=\"#md181c03b0e\" y=\"107.986682\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"191.509135\" xlink:href=\"#md181c03b0e\" y=\"122.890961\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"220.642828\" xlink:href=\"#md181c03b0e\" y=\"116.353561\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"194.189528\" xlink:href=\"#md181c03b0e\" y=\"127.436759\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"197.819291\" xlink:href=\"#md181c03b0e\" y=\"124.771481\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"206.886128\" xlink:href=\"#md181c03b0e\" y=\"116.541668\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"198.737239\" xlink:href=\"#md181c03b0e\" y=\"122.497215\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"210.810918\" xlink:href=\"#md181c03b0e\" y=\"107.58882\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"221.848941\" xlink:href=\"#md181c03b0e\" y=\"116.177362\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"230.176452\" xlink:href=\"#md181c03b0e\" y=\"113.596916\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"175.742511\" xlink:href=\"#md181c03b0e\" y=\"126.956893\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"190.529012\" xlink:href=\"#md181c03b0e\" y=\"115.592792\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"213.388324\" xlink:href=\"#md181c03b0e\" y=\"117.777952\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"199.429921\" xlink:href=\"#md181c03b0e\" y=\"121.611052\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"198.563776\" xlink:href=\"#md181c03b0e\" y=\"128.365174\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"220.709747\" xlink:href=\"#md181c03b0e\" y=\"115.853838\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"231.698766\" xlink:href=\"#md181c03b0e\" y=\"116.253491\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"191.632774\" xlink:href=\"#md181c03b0e\" y=\"126.771834\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"209.940666\" xlink:href=\"#md181c03b0e\" y=\"115.739127\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"186.994095\" xlink:href=\"#md181c03b0e\" y=\"123.135827\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"232.169495\" xlink:href=\"#md181c03b0e\" y=\"105.67762\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"179.95911\" xlink:href=\"#md181c03b0e\" y=\"123.548613\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"163.137843\" xlink:href=\"#md181c03b0e\" y=\"129.487453\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"203.781287\" xlink:href=\"#md181c03b0e\" y=\"116.459554\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"202.565093\" xlink:href=\"#md181c03b0e\" y=\"108.869186\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"182.078022\" xlink:href=\"#md181c03b0e\" y=\"121.754433\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"223.299507\" xlink:href=\"#md181c03b0e\" y=\"103.700643\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"203.20499\" xlink:href=\"#md181c03b0e\" y=\"116.530939\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"208.35501\" xlink:href=\"#md181c03b0e\" y=\"107.896226\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"190.705583\" xlink:href=\"#md181c03b0e\" y=\"157.46414\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"184.321656\" xlink:href=\"#md181c03b0e\" y=\"123.148018\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"193.836481\" xlink:href=\"#md181c03b0e\" y=\"114.828173\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"141.215731\" xlink:href=\"#md181c03b0e\" y=\"143.254152\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"195.369529\" xlink:href=\"#md181c03b0e\" y=\"120.917566\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"219.953257\" xlink:href=\"#md181c03b0e\" y=\"104.048297\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"192.632286\" xlink:href=\"#md181c03b0e\" y=\"114.9544\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"190.973753\" xlink:href=\"#md181c03b0e\" y=\"124.695117\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"203.6401\" xlink:href=\"#md181c03b0e\" y=\"115.505446\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"199.051199\" xlink:href=\"#md181c03b0e\" y=\"126.362017\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"196.734961\" xlink:href=\"#md181c03b0e\" y=\"117.417197\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"196.046912\" xlink:href=\"#md181c03b0e\" y=\"131.20248\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"206.292137\" xlink:href=\"#md181c03b0e\" y=\"112.802214\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"155.131874\" xlink:href=\"#md181c03b0e\" y=\"121.931701\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"185.773522\" xlink:href=\"#md181c03b0e\" y=\"114.018138\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"202.101414\" xlink:href=\"#md181c03b0e\" y=\"111.55729\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"167.69094\" xlink:href=\"#md181c03b0e\" y=\"121.75756\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"185.617527\" xlink:href=\"#md181c03b0e\" y=\"120.839223\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"197.286043\" xlink:href=\"#md181c03b0e\" y=\"120.629326\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"187.482126\" xlink:href=\"#md181c03b0e\" y=\"119.957882\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"213.887409\" xlink:href=\"#md181c03b0e\" y=\"111.723293\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"209.306012\" xlink:href=\"#md181c03b0e\" y=\"116.273002\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"219.529969\" xlink:href=\"#md181c03b0e\" y=\"114.399678\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"135.464008\" xlink:href=\"#md181c03b0e\" y=\"137.9067\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"169.577955\" xlink:href=\"#md181c03b0e\" y=\"128.020057\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"192.923287\" xlink:href=\"#md181c03b0e\" y=\"125.957714\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"117.889233\" xlink:href=\"#md181c03b0e\" y=\"171.959526\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"112.773407\" xlink:href=\"#md181c03b0e\" y=\"173.25864\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"220.290062\" xlink:href=\"#md181c03b0e\" y=\"109.30197\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"196.598136\" xlink:href=\"#md181c03b0e\" y=\"115.322681\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"206.914662\" xlink:href=\"#md181c03b0e\" y=\"120.191374\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"203.487113\" xlink:href=\"#md181c03b0e\" y=\"112.138593\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"184.529413\" xlink:href=\"#md181c03b0e\" y=\"125.972246\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"197.216563\" xlink:href=\"#md181c03b0e\" y=\"125.049368\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"202.912256\" xlink:href=\"#md181c03b0e\" y=\"122.730802\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"248.230398\" xlink:href=\"#md181c03b0e\" y=\"96.804294\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"196.734961\" xlink:href=\"#md181c03b0e\" y=\"116.577298\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"236.867278\" xlink:href=\"#md181c03b0e\" y=\"116.956072\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"191.490531\" xlink:href=\"#md181c03b0e\" y=\"123.540004\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"142.070031\" xlink:href=\"#md181c03b0e\" y=\"125.628959\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"196.981645\" xlink:href=\"#md181c03b0e\" y=\"118.609447\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"105.734411\" xlink:href=\"#md181c03b0e\" y=\"171.845607\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"204.681641\" xlink:href=\"#md181c03b0e\" y=\"117.824531\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"211.305578\" xlink:href=\"#md181c03b0e\" y=\"115.985658\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"199.631353\" xlink:href=\"#md181c03b0e\" y=\"121.987407\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"186.705879\" xlink:href=\"#md181c03b0e\" y=\"123.208712\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"206.118626\" xlink:href=\"#md181c03b0e\" y=\"101.887125\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"209.940666\" xlink:href=\"#md181c03b0e\" y=\"116.656568\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"192.632286\" xlink:href=\"#md181c03b0e\" y=\"114.133494\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"179.135591\" xlink:href=\"#md181c03b0e\" y=\"135.9338\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"187.801559\" xlink:href=\"#md181c03b0e\" y=\"129.83539\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"197.594119\" xlink:href=\"#md181c03b0e\" y=\"129.432391\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"207.923985\" xlink:href=\"#md181c03b0e\" y=\"113.753635\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"201.115867\" xlink:href=\"#md181c03b0e\" y=\"121.355189\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"190.597906\" xlink:href=\"#md181c03b0e\" y=\"121.899645\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"179.135591\" xlink:href=\"#md181c03b0e\" y=\"135.117583\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"207.923985\" xlink:href=\"#md181c03b0e\" y=\"114.968853\"/>\n",
+       "     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"225.229391\" xlink:href=\"#md181c03b0e\" y=\"114.316998\"/>\n",
+       "    </g>\n",
+       "   </g>\n",
+       "   <g id=\"matplotlib.axis_1\">\n",
+       "    <g id=\"xtick_1\">\n",
+       "     <g id=\"line2d_1\">\n",
+       "      <defs>\n",
+       "       <path d=\"M 0 0 \n",
+       "L 0 3.5 \n",
+       "\" id=\"m18fd5d60ef\" style=\"stroke:#000000;stroke-width:0.8;\"/>\n",
+       "      </defs>\n",
+       "      <g>\n",
+       "       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"45.321307\" xlink:href=\"#m18fd5d60ef\" y=\"228.14\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "     <g id=\"text_1\">\n",
+       "      <!-- 0.0 -->\n",
+       "      <defs>\n",
+       "       <path d=\"M 31.78125 66.40625 \n",
+       "Q 24.171875 66.40625 20.328125 58.90625 \n",
+       "Q 16.5 51.421875 16.5 36.375 \n",
+       "Q 16.5 21.390625 20.328125 13.890625 \n",
+       "Q 24.171875 6.390625 31.78125 6.390625 \n",
+       "Q 39.453125 6.390625 43.28125 13.890625 \n",
+       "Q 47.125 21.390625 47.125 36.375 \n",
+       "Q 47.125 51.421875 43.28125 58.90625 \n",
+       "Q 39.453125 66.40625 31.78125 66.40625 \n",
+       "z\n",
+       "M 31.78125 74.21875 \n",
+       "Q 44.046875 74.21875 50.515625 64.515625 \n",
+       "Q 56.984375 54.828125 56.984375 36.375 \n",
+       "Q 56.984375 17.96875 50.515625 8.265625 \n",
+       "Q 44.046875 -1.421875 31.78125 -1.421875 \n",
+       "Q 19.53125 -1.421875 13.0625 8.265625 \n",
+       "Q 6.59375 17.96875 6.59375 36.375 \n",
+       "Q 6.59375 54.828125 13.0625 64.515625 \n",
+       "Q 19.53125 74.21875 31.78125 74.21875 \n",
+       "z\n",
+       "\" id=\"DejaVuSans-30\"/>\n",
+       "       <path d=\"M 10.6875 12.40625 \n",
+       "L 21 12.40625 \n",
+       "L 21 0 \n",
+       "L 10.6875 0 \n",
+       "z\n",
+       "\" id=\"DejaVuSans-2e\"/>\n",
+       "      </defs>\n",
+       "      <g transform=\"translate(37.369744 242.738437)scale(0.1 -0.1)\">\n",
+       "       <use xlink:href=\"#DejaVuSans-30\"/>\n",
+       "       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-2e\"/>\n",
+       "       <use x=\"95.410156\" xlink:href=\"#DejaVuSans-30\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "    </g>\n",
+       "    <g id=\"xtick_2\">\n",
+       "     <g id=\"line2d_2\">\n",
+       "      <g>\n",
+       "       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"85.903125\" xlink:href=\"#m18fd5d60ef\" y=\"228.14\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "     <g id=\"text_2\">\n",
+       "      <!-- 0.2 -->\n",
+       "      <defs>\n",
+       "       <path d=\"M 19.1875 8.296875 \n",
+       "L 53.609375 8.296875 \n",
+       "L 53.609375 0 \n",
+       "L 7.328125 0 \n",
+       "L 7.328125 8.296875 \n",
+       "Q 12.9375 14.109375 22.625 23.890625 \n",
+       "Q 32.328125 33.6875 34.8125 36.53125 \n",
+       "Q 39.546875 41.84375 41.421875 45.53125 \n",
+       "Q 43.3125 49.21875 43.3125 52.78125 \n",
+       "Q 43.3125 58.59375 39.234375 62.25 \n",
+       "Q 35.15625 65.921875 28.609375 65.921875 \n",
+       "Q 23.96875 65.921875 18.8125 64.3125 \n",
+       "Q 13.671875 62.703125 7.8125 59.421875 \n",
+       "L 7.8125 69.390625 \n",
+       "Q 13.765625 71.78125 18.9375 73 \n",
+       "Q 24.125 74.21875 28.421875 74.21875 \n",
+       "Q 39.75 74.21875 46.484375 68.546875 \n",
+       "Q 53.21875 62.890625 53.21875 53.421875 \n",
+       "Q 53.21875 48.921875 51.53125 44.890625 \n",
+       "Q 49.859375 40.875 45.40625 35.40625 \n",
+       "Q 44.1875 33.984375 37.640625 27.21875 \n",
+       "Q 31.109375 20.453125 19.1875 8.296875 \n",
+       "z\n",
+       "\" id=\"DejaVuSans-32\"/>\n",
+       "      </defs>\n",
+       "      <g transform=\"translate(77.951563 242.738437)scale(0.1 -0.1)\">\n",
+       "       <use xlink:href=\"#DejaVuSans-30\"/>\n",
+       "       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-2e\"/>\n",
+       "       <use x=\"95.410156\" xlink:href=\"#DejaVuSans-32\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "    </g>\n",
+       "    <g id=\"xtick_3\">\n",
+       "     <g id=\"line2d_3\">\n",
+       "      <g>\n",
+       "       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"126.484943\" xlink:href=\"#m18fd5d60ef\" y=\"228.14\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "     <g id=\"text_3\">\n",
+       "      <!-- 0.4 -->\n",
+       "      <defs>\n",
+       "       <path d=\"M 37.796875 64.3125 \n",
+       "L 12.890625 25.390625 \n",
+       "L 37.796875 25.390625 \n",
+       "z\n",
+       "M 35.203125 72.90625 \n",
+       "L 47.609375 72.90625 \n",
+       "L 47.609375 25.390625 \n",
+       "L 58.015625 25.390625 \n",
+       "L 58.015625 17.1875 \n",
+       "L 47.609375 17.1875 \n",
+       "L 47.609375 0 \n",
+       "L 37.796875 0 \n",
+       "L 37.796875 17.1875 \n",
+       "L 4.890625 17.1875 \n",
+       "L 4.890625 26.703125 \n",
+       "z\n",
+       "\" id=\"DejaVuSans-34\"/>\n",
+       "      </defs>\n",
+       "      <g transform=\"translate(118.533381 242.738437)scale(0.1 -0.1)\">\n",
+       "       <use xlink:href=\"#DejaVuSans-30\"/>\n",
+       "       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-2e\"/>\n",
+       "       <use x=\"95.410156\" xlink:href=\"#DejaVuSans-34\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "    </g>\n",
+       "    <g id=\"xtick_4\">\n",
+       "     <g id=\"line2d_4\">\n",
+       "      <g>\n",
+       "       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"167.066761\" xlink:href=\"#m18fd5d60ef\" y=\"228.14\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "     <g id=\"text_4\">\n",
+       "      <!-- 0.6 -->\n",
+       "      <defs>\n",
+       "       <path d=\"M 33.015625 40.375 \n",
+       "Q 26.375 40.375 22.484375 35.828125 \n",
+       "Q 18.609375 31.296875 18.609375 23.390625 \n",
+       "Q 18.609375 15.53125 22.484375 10.953125 \n",
+       "Q 26.375 6.390625 33.015625 6.390625 \n",
+       "Q 39.65625 6.390625 43.53125 10.953125 \n",
+       "Q 47.40625 15.53125 47.40625 23.390625 \n",
+       "Q 47.40625 31.296875 43.53125 35.828125 \n",
+       "Q 39.65625 40.375 33.015625 40.375 \n",
+       "z\n",
+       "M 52.59375 71.296875 \n",
+       "L 52.59375 62.3125 \n",
+       "Q 48.875 64.0625 45.09375 64.984375 \n",
+       "Q 41.3125 65.921875 37.59375 65.921875 \n",
+       "Q 27.828125 65.921875 22.671875 59.328125 \n",
+       "Q 17.53125 52.734375 16.796875 39.40625 \n",
+       "Q 19.671875 43.65625 24.015625 45.921875 \n",
+       "Q 28.375 48.1875 33.59375 48.1875 \n",
+       "Q 44.578125 48.1875 50.953125 41.515625 \n",
+       "Q 57.328125 34.859375 57.328125 23.390625 \n",
+       "Q 57.328125 12.15625 50.6875 5.359375 \n",
+       "Q 44.046875 -1.421875 33.015625 -1.421875 \n",
+       "Q 20.359375 -1.421875 13.671875 8.265625 \n",
+       "Q 6.984375 17.96875 6.984375 36.375 \n",
+       "Q 6.984375 53.65625 15.1875 63.9375 \n",
+       "Q 23.390625 74.21875 37.203125 74.21875 \n",
+       "Q 40.921875 74.21875 44.703125 73.484375 \n",
+       "Q 48.484375 72.75 52.59375 71.296875 \n",
+       "z\n",
+       "\" id=\"DejaVuSans-36\"/>\n",
+       "      </defs>\n",
+       "      <g transform=\"translate(159.115199 242.738437)scale(0.1 -0.1)\">\n",
+       "       <use xlink:href=\"#DejaVuSans-30\"/>\n",
+       "       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-2e\"/>\n",
+       "       <use x=\"95.410156\" xlink:href=\"#DejaVuSans-36\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "    </g>\n",
+       "    <g id=\"xtick_5\">\n",
+       "     <g id=\"line2d_5\">\n",
+       "      <g>\n",
+       "       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"207.64858\" xlink:href=\"#m18fd5d60ef\" y=\"228.14\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "     <g id=\"text_5\">\n",
+       "      <!-- 0.8 -->\n",
+       "      <defs>\n",
+       "       <path d=\"M 31.78125 34.625 \n",
+       "Q 24.75 34.625 20.71875 30.859375 \n",
+       "Q 16.703125 27.09375 16.703125 20.515625 \n",
+       "Q 16.703125 13.921875 20.71875 10.15625 \n",
+       "Q 24.75 6.390625 31.78125 6.390625 \n",
+       "Q 38.8125 6.390625 42.859375 10.171875 \n",
+       "Q 46.921875 13.96875 46.921875 20.515625 \n",
+       "Q 46.921875 27.09375 42.890625 30.859375 \n",
+       "Q 38.875 34.625 31.78125 34.625 \n",
+       "z\n",
+       "M 21.921875 38.8125 \n",
+       "Q 15.578125 40.375 12.03125 44.71875 \n",
+       "Q 8.5 49.078125 8.5 55.328125 \n",
+       "Q 8.5 64.0625 14.71875 69.140625 \n",
+       "Q 20.953125 74.21875 31.78125 74.21875 \n",
+       "Q 42.671875 74.21875 48.875 69.140625 \n",
+       "Q 55.078125 64.0625 55.078125 55.328125 \n",
+       "Q 55.078125 49.078125 51.53125 44.71875 \n",
+       "Q 48 40.375 41.703125 38.8125 \n",
+       "Q 48.828125 37.15625 52.796875 32.3125 \n",
+       "Q 56.78125 27.484375 56.78125 20.515625 \n",
+       "Q 56.78125 9.90625 50.3125 4.234375 \n",
+       "Q 43.84375 -1.421875 31.78125 -1.421875 \n",
+       "Q 19.734375 -1.421875 13.25 4.234375 \n",
+       "Q 6.78125 9.90625 6.78125 20.515625 \n",
+       "Q 6.78125 27.484375 10.78125 32.3125 \n",
+       "Q 14.796875 37.15625 21.921875 38.8125 \n",
+       "z\n",
+       "M 18.3125 54.390625 \n",
+       "Q 18.3125 48.734375 21.84375 45.5625 \n",
+       "Q 25.390625 42.390625 31.78125 42.390625 \n",
+       "Q 38.140625 42.390625 41.71875 45.5625 \n",
+       "Q 45.3125 48.734375 45.3125 54.390625 \n",
+       "Q 45.3125 60.0625 41.71875 63.234375 \n",
+       "Q 38.140625 66.40625 31.78125 66.40625 \n",
+       "Q 25.390625 66.40625 21.84375 63.234375 \n",
+       "Q 18.3125 60.0625 18.3125 54.390625 \n",
+       "z\n",
+       "\" id=\"DejaVuSans-38\"/>\n",
+       "      </defs>\n",
+       "      <g transform=\"translate(199.697017 242.738437)scale(0.1 -0.1)\">\n",
+       "       <use xlink:href=\"#DejaVuSans-30\"/>\n",
+       "       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-2e\"/>\n",
+       "       <use x=\"95.410156\" xlink:href=\"#DejaVuSans-38\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "    </g>\n",
+       "    <g id=\"xtick_6\">\n",
+       "     <g id=\"line2d_6\">\n",
+       "      <g>\n",
+       "       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"248.230398\" xlink:href=\"#m18fd5d60ef\" y=\"228.14\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "     <g id=\"text_6\">\n",
+       "      <!-- 1.0 -->\n",
+       "      <defs>\n",
+       "       <path d=\"M 12.40625 8.296875 \n",
+       "L 28.515625 8.296875 \n",
+       "L 28.515625 63.921875 \n",
+       "L 10.984375 60.40625 \n",
+       "L 10.984375 69.390625 \n",
+       "L 28.421875 72.90625 \n",
+       "L 38.28125 72.90625 \n",
+       "L 38.28125 8.296875 \n",
+       "L 54.390625 8.296875 \n",
+       "L 54.390625 0 \n",
+       "L 12.40625 0 \n",
+       "z\n",
+       "\" id=\"DejaVuSans-31\"/>\n",
+       "      </defs>\n",
+       "      <g transform=\"translate(240.278835 242.738437)scale(0.1 -0.1)\">\n",
+       "       <use xlink:href=\"#DejaVuSans-31\"/>\n",
+       "       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-2e\"/>\n",
+       "       <use x=\"95.410156\" xlink:href=\"#DejaVuSans-30\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "    </g>\n",
+       "    <g id=\"xtick_7\">\n",
+       "     <g id=\"line2d_7\">\n",
+       "      <g>\n",
+       "       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"288.812216\" xlink:href=\"#m18fd5d60ef\" y=\"228.14\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "     <g id=\"text_7\">\n",
+       "      <!-- 1.2 -->\n",
+       "      <g transform=\"translate(280.860653 242.738437)scale(0.1 -0.1)\">\n",
+       "       <use xlink:href=\"#DejaVuSans-31\"/>\n",
+       "       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-2e\"/>\n",
+       "       <use x=\"95.410156\" xlink:href=\"#DejaVuSans-32\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "    </g>\n",
+       "    <g id=\"xtick_8\">\n",
+       "     <g id=\"line2d_8\">\n",
+       "      <g>\n",
+       "       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"329.394034\" xlink:href=\"#m18fd5d60ef\" y=\"228.14\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "     <g id=\"text_8\">\n",
+       "      <!-- 1.4 -->\n",
+       "      <g transform=\"translate(321.442472 242.738437)scale(0.1 -0.1)\">\n",
+       "       <use xlink:href=\"#DejaVuSans-31\"/>\n",
+       "       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-2e\"/>\n",
+       "       <use x=\"95.410156\" xlink:href=\"#DejaVuSans-34\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "    </g>\n",
+       "   </g>\n",
+       "   <g id=\"matplotlib.axis_2\">\n",
+       "    <g id=\"ytick_1\">\n",
+       "     <g id=\"line2d_9\">\n",
+       "      <defs>\n",
+       "       <path d=\"M 0 0 \n",
+       "L -3.5 0 \n",
+       "\" id=\"m59d369c192\" style=\"stroke:#000000;stroke-width:0.8;\"/>\n",
+       "      </defs>\n",
+       "      <g>\n",
+       "       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"30.103125\" xlink:href=\"#m59d369c192\" y=\"218.256364\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "     <g id=\"text_9\">\n",
+       "      <!-- 0.0 -->\n",
+       "      <g transform=\"translate(7.2 222.055582)scale(0.1 -0.1)\">\n",
+       "       <use xlink:href=\"#DejaVuSans-30\"/>\n",
+       "       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-2e\"/>\n",
+       "       <use x=\"95.410156\" xlink:href=\"#DejaVuSans-30\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "    </g>\n",
+       "    <g id=\"ytick_2\">\n",
+       "     <g id=\"line2d_10\">\n",
+       "      <g>\n",
+       "       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"30.103125\" xlink:href=\"#m59d369c192\" y=\"191.9\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "     <g id=\"text_10\">\n",
+       "      <!-- 0.2 -->\n",
+       "      <g transform=\"translate(7.2 195.699219)scale(0.1 -0.1)\">\n",
+       "       <use xlink:href=\"#DejaVuSans-30\"/>\n",
+       "       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-2e\"/>\n",
+       "       <use x=\"95.410156\" xlink:href=\"#DejaVuSans-32\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "    </g>\n",
+       "    <g id=\"ytick_3\">\n",
+       "     <g id=\"line2d_11\">\n",
+       "      <g>\n",
+       "       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"30.103125\" xlink:href=\"#m59d369c192\" y=\"165.543636\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "     <g id=\"text_11\">\n",
+       "      <!-- 0.4 -->\n",
+       "      <g transform=\"translate(7.2 169.342855)scale(0.1 -0.1)\">\n",
+       "       <use xlink:href=\"#DejaVuSans-30\"/>\n",
+       "       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-2e\"/>\n",
+       "       <use x=\"95.410156\" xlink:href=\"#DejaVuSans-34\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "    </g>\n",
+       "    <g id=\"ytick_4\">\n",
+       "     <g id=\"line2d_12\">\n",
+       "      <g>\n",
+       "       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"30.103125\" xlink:href=\"#m59d369c192\" y=\"139.187273\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "     <g id=\"text_12\">\n",
+       "      <!-- 0.6 -->\n",
+       "      <g transform=\"translate(7.2 142.986491)scale(0.1 -0.1)\">\n",
+       "       <use xlink:href=\"#DejaVuSans-30\"/>\n",
+       "       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-2e\"/>\n",
+       "       <use x=\"95.410156\" xlink:href=\"#DejaVuSans-36\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "    </g>\n",
+       "    <g id=\"ytick_5\">\n",
+       "     <g id=\"line2d_13\">\n",
+       "      <g>\n",
+       "       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"30.103125\" xlink:href=\"#m59d369c192\" y=\"112.830909\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "     <g id=\"text_13\">\n",
+       "      <!-- 0.8 -->\n",
+       "      <g transform=\"translate(7.2 116.630128)scale(0.1 -0.1)\">\n",
+       "       <use xlink:href=\"#DejaVuSans-30\"/>\n",
+       "       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-2e\"/>\n",
+       "       <use x=\"95.410156\" xlink:href=\"#DejaVuSans-38\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "    </g>\n",
+       "    <g id=\"ytick_6\">\n",
+       "     <g id=\"line2d_14\">\n",
+       "      <g>\n",
+       "       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"30.103125\" xlink:href=\"#m59d369c192\" y=\"86.474545\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "     <g id=\"text_14\">\n",
+       "      <!-- 1.0 -->\n",
+       "      <g transform=\"translate(7.2 90.273764)scale(0.1 -0.1)\">\n",
+       "       <use xlink:href=\"#DejaVuSans-31\"/>\n",
+       "       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-2e\"/>\n",
+       "       <use x=\"95.410156\" xlink:href=\"#DejaVuSans-30\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "    </g>\n",
+       "    <g id=\"ytick_7\">\n",
+       "     <g id=\"line2d_15\">\n",
+       "      <g>\n",
+       "       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"30.103125\" xlink:href=\"#m59d369c192\" y=\"60.118182\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "     <g id=\"text_15\">\n",
+       "      <!-- 1.2 -->\n",
+       "      <g transform=\"translate(7.2 63.917401)scale(0.1 -0.1)\">\n",
+       "       <use xlink:href=\"#DejaVuSans-31\"/>\n",
+       "       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-2e\"/>\n",
+       "       <use x=\"95.410156\" xlink:href=\"#DejaVuSans-32\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "    </g>\n",
+       "    <g id=\"ytick_8\">\n",
+       "     <g id=\"line2d_16\">\n",
+       "      <g>\n",
+       "       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"30.103125\" xlink:href=\"#m59d369c192\" y=\"33.761818\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "     <g id=\"text_16\">\n",
+       "      <!-- 1.4 -->\n",
+       "      <g transform=\"translate(7.2 37.561037)scale(0.1 -0.1)\">\n",
+       "       <use xlink:href=\"#DejaVuSans-31\"/>\n",
+       "       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-2e\"/>\n",
+       "       <use x=\"95.410156\" xlink:href=\"#DejaVuSans-34\"/>\n",
+       "      </g>\n",
+       "     </g>\n",
+       "    </g>\n",
+       "   </g>\n",
+       "   <g id=\"line2d_17\">\n",
+       "    <path clip-path=\"url(#p05ec3d78e5)\" d=\"M 45.321307 218.256364 \n",
+       "L 349.684943 20.583636 \n",
+       "\" style=\"fill:none;stroke:#1f77b4;stroke-linecap:square;stroke-width:1.5;\"/>\n",
+       "   </g>\n",
+       "   <g id=\"patch_3\">\n",
+       "    <path d=\"M 30.103125 228.14 \n",
+       "L 30.103125 10.7 \n",
+       "\" style=\"fill:none;stroke:#000000;stroke-linecap:square;stroke-linejoin:miter;stroke-width:0.8;\"/>\n",
+       "   </g>\n",
+       "   <g id=\"patch_4\">\n",
+       "    <path d=\"M 364.903125 228.14 \n",
+       "L 364.903125 10.7 \n",
+       "\" style=\"fill:none;stroke:#000000;stroke-linecap:square;stroke-linejoin:miter;stroke-width:0.8;\"/>\n",
+       "   </g>\n",
+       "   <g id=\"patch_5\">\n",
+       "    <path d=\"M 30.103125 228.14 \n",
+       "L 364.903125 228.14 \n",
+       "\" style=\"fill:none;stroke:#000000;stroke-linecap:square;stroke-linejoin:miter;stroke-width:0.8;\"/>\n",
+       "   </g>\n",
+       "   <g id=\"patch_6\">\n",
+       "    <path d=\"M 30.103125 10.7 \n",
+       "L 364.903125 10.7 \n",
+       "\" style=\"fill:none;stroke:#000000;stroke-linecap:square;stroke-linejoin:miter;stroke-width:0.8;\"/>\n",
+       "   </g>\n",
+       "  </g>\n",
+       " </g>\n",
+       " <defs>\n",
+       "  <clipPath id=\"p05ec3d78e5\">\n",
+       "   <rect height=\"217.44\" width=\"334.8\" x=\"30.103125\" y=\"10.7\"/>\n",
+       "  </clipPath>\n",
+       " </defs>\n",
+       "</svg>\n"
+      ],
+      "text/plain": [
+       "<Figure size 432x288 with 1 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "plt.plot([0,1.5],[0,1.5])\n",
+    "plt.scatter(y_valid,the_model.predict(x_valid.reshape(len(x_valid),100,1)))\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:50.645069Z",
+     "start_time": "2019-08-12T21:19:50.552767Z"
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[[0.35878092]\n",
+      " [0.810184  ]\n",
+      " [0.7656734 ]\n",
+      " ...\n",
+      " [0.7615384 ]\n",
+      " [0.78521705]\n",
+      " [0.7156267 ]]\n"
+     ]
+    }
+   ],
+   "source": [
+    "exs = np.expand_dims(x_train, axis=-1)\n",
+    "print(the_model.predict(exs))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:52.786142Z",
+     "start_time": "2019-08-12T21:19:50.647548Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "def get_layer_output_simple_target(model,X,target_output):\n",
+    "    inputs = model.input\n",
+    "    outputs = model.output\n",
+    "    focus = model.output[0][target_output]\n",
+    "    grad = K.gradients(focus, inputs)[0]\n",
+    "    f = K.function([inputs], [outputs,grad])    \n",
+    "    return f([X])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "ExecuteTime": {
+     "start_time": "2019-08-12T21:19:32.070Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "exs = x_train[0,:]\n",
+    "exs = np.expand_dims(exs, axis=-1)\n",
+    "target_output=0\n",
+    "inputs = the_model.input\n",
+    "outputs = the_model.output\n",
+    "focus = the_model.output[0][target_output]\n",
+    "grad = K.gradients(focus, inputs)[0]\n",
+    "f = K.function([inputs], [outputs,grad])    \n",
+    "result =f([exs])\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:13.195136Z",
+     "start_time": "2019-08-12T21:19:13.137509Z"
+    }
+   },
+   "outputs": [
+    {
+     "ename": "NameError",
+     "evalue": "name 'result' is not defined",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
+      "\u001b[0;31mNameError\u001b[0m                                 Traceback (most recent call last)",
+      "\u001b[0;32m<ipython-input-1-0c7236d4d811>\u001b[0m in \u001b[0;36m<module>\u001b[0;34m\u001b[0m\n\u001b[0;32m----> 1\u001b[0;31m \u001b[0mprint\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mresult\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0;36m0\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m      2\u001b[0m \u001b[0mprint\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mresult\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0;36m1\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mshape\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;31mNameError\u001b[0m: name 'result' is not defined"
+     ]
+    }
+   ],
+   "source": [
+    "print(result[0])\n",
+    "print(result[1].shape)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:13.197244Z",
+     "start_time": "2019-08-12T21:19:11.854Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "print(exs.shape)\n",
+    "the_grad  = get_layer_output_simple_target(the_model,exs.reshape(1,100,1),0)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:19:29.839526Z",
+     "start_time": "2019-08-12T21:19:25.138Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "orig_exs = orig_x[1,:]\n",
+    "exs = x_train[1,:]\n",
+    "\n",
+    "the_grad  = get_layer_output_simple_target(the_model,\n",
+    "                            exs.reshape(1,100,1),0)\n",
+    "#print(the_grad[1].shape)\n",
+    "print(the_grad[0])\n",
+    "print(y_train[1])\n",
+    "plt.plot(np.array(range(len(exs))),exs)\n",
+    "plt.plot(range(len(exs)),the_grad[1].flatten())\n",
+    "#conv_x_range = np.array(range(191))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2019-08-12T21:18:39.755062Z",
+     "start_time": "2019-08-12T21:18:09.187Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "plt.figure(figsize=(20,8))\n",
+    "plt.plot(conv_x_range,the_grad[0,:,0])\n",
+    "plt.plot(conv_x_range,the_grad[0,:,1])\n",
+    "plt.plot(conv_x_range,the_grad[0,:,2])\n",
+    "plt.plot(conv_x_range,the_grad[0,:,3])\n",
+    "plt.plot(conv_x_range,the_grad[0,:,4])\n",
+    "plt.plot(conv_x_range,the_grad[0,:,5])\n",
+    "plt.plot(conv_x_range,the_grad[0,:,6])\n",
+    "plt.plot(conv_x_range,the_grad[0,:,7])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "colab": {
+   "collapsed_sections": [],
+   "name": "hp_tuning_regression.ipynb",
+   "provenance": [
+    {
+     "file_id": "1kbLmPPDOOQBDBHI04GbV4M4lI-j6z_sv",
+     "timestamp": 1565227329964
+    }
+   ],
+   "version": "0.3.2"
+  },
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.6.8"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 1
+}
