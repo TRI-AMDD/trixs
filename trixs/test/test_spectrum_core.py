@@ -130,9 +130,6 @@ def test_load_from_doc_and_object():
 
 
 
-
-
-
 def test_XAS_gradient():
     X = np.linspace(0,1,500)
     Y = np.sin(X)
@@ -207,6 +204,32 @@ def test_projection():
     # Test that it extrapolates correctly for a few points
     assert (np.isclose(new_yvals[200:205], true_yvals[200:205])).all()
 
+
+def test_broaden_spectrum():
+    x = np.linspace(0, 1, 100)
+    y = np.sin(x)
+    spec = XAS_Spectrum(x, y)
+    assert x[-1]-x[0] == 1.0
+
+    spec.broaden_spectrum(0)
+    assert spec.x[-1]-spec.x[0] == 1.0
+
+
+    spec.broaden_spectrum(.05)
+    print(spec.x[-1] - spec.x[0])
+    assert np.isclose(spec.x[-1] - spec.x[0], 1.05)
+
+    assert spec.x[-1] == 1.025
+    assert spec.x[0] ==-.025
+
+    x = np.linspace(0, 1, 100)
+    y = np.sin(x)
+    spec = XAS_Spectrum(x, y)
+    spec.broaden_spectrum(-.05)
+
+    assert np.isclose(spec.x[-1] - spec.x[0], .95)
+    assert spec.x[-1] ==.975
+    assert spec.x[0] ==.025
 
 
 def test_sanity_check():

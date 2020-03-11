@@ -167,6 +167,11 @@ def compare_city_block(X, Y):
     return sum(abs(X - Y))
 
 
+def compare_city_block_avg(X, Y):
+    assert len(X) == len(Y)
+    return sum(abs(X - Y))/len(X)
+
+
 def compare_chebyshev(X, Y):
     return max(abs(X - Y))
 
@@ -339,6 +344,7 @@ def get_all_comparisons():
     return {'pearson': compare_pearson,
             'euclidean': compare_euclidean,
             'city_block': compare_city_block,
+            'city_block_avg': compare_city_block_avg,
             'chebyshev': compare_chebyshev,
             'sorenson': compare_sorensen,
             'soergel': compare_soergel,

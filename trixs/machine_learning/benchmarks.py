@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as colors
 import matplotlib as mpl
+from matplotlib.patches import Rectangle
 
 
 def precision_recall(fits: List, labels: List, target):
@@ -69,7 +70,7 @@ def _truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
 
 def plot_coordination_confusion_matrix(guesses, labels, categories=(4, 5, 6),
                                        title='Confusion Matrix \n  (F1 Score on Diagonal)',
-                                       save='',
+                                       savefig='',
                                        fontcolor='black'):
     """
     Pass in predictions as guesses and labels as labels
@@ -89,7 +90,7 @@ def plot_coordination_confusion_matrix(guesses, labels, categories=(4, 5, 6),
     f1_score = precision_recall_matrix(guesses, labels, categories)
     f1s = [np.round(100 * x[2], 1) for x in f1_score]
     conf_mat = np.array([conf_dict[c] for c in categories])
-    percent_mat = np.copy(conf_dict).astype('float64')
+    percent_mat = np.copy(conf_mat).astype('float64')
     fig = plt.figure(1, dpi=300)
     ax = fig.add_subplot(111, autoscale_on=True)
     sums = np.sum(conf_mat, axis=1, dtype='float64')
@@ -143,7 +144,64 @@ def plot_coordination_confusion_matrix(guesses, labels, categories=(4, 5, 6),
 
     ax.set_title(title)
 
-    if save == '':
+    if savefig == '':
         plt.show()
     else:
-        plt.savefig(save, dpi=300, transparent=True)
+        plt.savefig(savefig, dpi=300, transparent=True,format='pdf',
+        bbox_inches = 'tight')
+
+_colors_by_pair = {('Ti','O'):'orangered',
+                  ('V','O'):'darkorange',
+                  ('Cr','O'):'gold',
+                  ('Mn','O'):'seagreen',
+                  ('Fe','O'):'dodgerblue',
+                  ('Co','O'):'navy',
+                  ('Ni','O'):'rebeccapurple',
+                  ('Cu','O'):"mediumvioletred"}
+
+def plot_parity_plot(y_guesses, y_valid, title,color='blue',
+                     savefig=''):
+
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    the_range = y_valid
+
+    bmin = np.min(the_range)
+    bmax = np.max(the_range)
+
+    plt.plot([bmin, bmax], [bmin, bmax], color='black', ls='--')
+    plt.xlabel("True Bader Charge", size=24)
+    plt.ylabel("Predicted\nBader Charge", size=24)
+    plt.title("{}O\nRandom Forest Bader Charges".format(title),
+              size=24)
+
+    baders = y_valid
+
+    plt.scatter(y_valid, y_guesses,
+                color=color, label="Validation Set",
+                alpha=.7, s=2)
+
+    mae = np.mean(np.abs(y_valid - y_guesses))
+    # mse = np.mean(np.abs(guesses-baders)**2)
+
+    y_val_bar = np.mean(y_valid)
+    SStot = np.sum(np.abs(y_valid - y_val_bar) ** 2)
+    SSres = np.sum((y_valid - y_guesses ** 2))
+    # print(SStot)
+    # print(SSres)
+    R2 = 1 - SSres / SStot
+
+    extra1 = Rectangle((0, 0), 0, 0, fc='w', fill=False,
+                       edgecolor='none', linewidth=0)
+
+    ax.legend([extra1, extra1, extra1], ['MAE = %.3f' % mae],
+              fontsize=20, frameon=False, loc='lower right')
+
+    if savefig:
+        plt.savefig(savefig,format='pdf',dpi=300,
+                    bbox_inches='tight')
+    plt.show()
+
+
+

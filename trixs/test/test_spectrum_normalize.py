@@ -3,7 +3,7 @@ import numpy as np
 from trixs.spectra.spectrum_io import parse_spectrum
 
 from trixs.spectra.spectrum_normalize import normalize_sum, normalize_l2, normalize_max, \
-    normalize_minmax, normalize_z
+    normalize_minmax, normalize_z, normalize_0left_1right
 
 from math import isclose
 
@@ -100,3 +100,17 @@ def test_minmax_normalization(sample_spectrum):
     for spec in [spec1, sample_spectrum]:
         assert isclose(np.min(spec.y), 0.0)
         assert isclose(np.max(spec.y), 1.0)
+
+def test_0to1_normalization(sample_spectrum):
+
+
+    spec1 = normalize_0left_1right(sample_spectrum)
+
+    normalize_0left_1right(sample_spectrum,in_place=True)
+
+    for spec in [spec1,sample_spectrum]:
+        assert isclose(spec.y[0], 0.0)
+        assert isclose(np.mean(spec.y[-5:]), 1.0)
+
+
+    pass

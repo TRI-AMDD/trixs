@@ -170,8 +170,11 @@ class XAS_Spectrum(Spectrum):
             x = spectrum[:, 0]
             y = spectrum[:, 3]
 
-        return XAS_Spectrum(x, y, structure, abs_at_idx, full_spectrum=spectrum)
+        spec = XAS_Spectrum(x, y, structure, abs_at_idx, full_spectrum=spectrum)
 
+        spec.metadata = document.get('metadata')
+
+        return spec
     def as_dict(self):
 
         thedict = super().as_dict()
@@ -245,7 +248,7 @@ class XAS_Spectrum(Spectrum):
 
         return np.where(self.y == np.max(self.y))[0][0]
 
-    def project_to_x_range(self, proj_x, alt_x='', alt_y=''):
+    def project_to_x_range(self, proj_x, alt_x=None, alt_y=None,pad=True):
         """
         Projects the value of the spectrum onto the values of proj_x using
         cubic interpolation, padding with 0 on the left and extrapolating on the right
@@ -258,30 +261,41 @@ class XAS_Spectrum(Spectrum):
 
         # Get alternate x or y values
 
-        if alt_x.lower() == 'enorm':
-            X = self.Enorm
-        elif alt_x.lower() == 'k':
-            X = self.k
-        else:
+        if isinstance(alt_x, str):
+            if alt_x.lower() == 'enorm':
+                X = self.Enorm
+            elif alt_x.lower() == 'k':
+                X = self.k
+        elif alt_x is None:
             X = self.x
-
-        if alt_y.lower() == 'mu0':
-            Y = self.mu0
-        elif alt_y.lower() == 'chi':
-            Y = self.chi
         else:
+            X = alt_x
+        if isinstance(alt_x, str):
+
+            if alt_y.lower() == 'mu0':
+                Y = self.mu0
+            elif alt_y.lower() == 'chi':
+                Y = self.chi
+        elif alt_y is None:
             Y = self.y
+        else:
+            Y = alt_y
 
         xmin = min(X)
 
         # Pad with zeroes on the left
-        x_pad = np.array([proj_x[i] for i in range(len(proj_x)) if proj_x[i] < xmin])
-        y_pad = np.array([0.0] * len(x_pad))
 
-        # Return interpolation and extrapolate to right if necessary
-        func = interp1d(np.concatenate((x_pad, X)), np.concatenate((y_pad, Y)),
-                        kind='cubic', fill_value='extrapolate', assume_sorted=True)
+        if pad:
+            x_pad = np.array([proj_x[i] for i in range(len(proj_x)) if
+                          proj_x[i] < xmin])
+            y_pad = np.array([0.0] * len(x_pad))
 
+            # Return interpolation and extrapolate to right if necessary
+            func = interp1d(np.concatenate((x_pad, X)), np.concatenate((y_pad, Y)),
+                            kind='cubic', fill_value='extrapolate', assume_sorted=True)
+        else:
+            func = interp1d(X, Y,
+                            kind='cubic', fill_value='extrapolate', assume_sorted=True)
         # Occasionally the interpolation returns negative values
         # with the left zero-padding, so manually ceil them to 0
         return np.maximum(func(proj_x.round(8)), 0)
@@ -329,6 +343,36 @@ class XAS_Spectrum(Spectrum):
             return False
 
         return True
+
+    def broaden_spectrum_mult(self,factor: float ):
+        """
+        Returns a broadened form of the spectrum.
+
+        :param factor: 0 means no change, .05 means 5 percent broadening, etc.
+        :return:
+        """
+        current_domain = (min(self.x),max(self.x))
+
+        L = current_domain[1] - current_domain[0]
+        new_domain = (current_domain[0]-factor/2*L, current_domain[
+            1]+factor/2*L)
+
+        self.x = np.linspace(new_domain[0],new_domain[1],100)
+
+    def broaden_spectrum_const(self, factor: float):
+        """
+        Returns a broadened form of the spectrum.
+
+        :param factor: 0 means no change, 5 means 5 eV broadening, etc.
+        :return:
+        """
+        current_domain = (min(self.x), max(self.x))
+
+        new_domain = (current_domain[0] - factor / 2, current_domain[
+            1] + factor / 2)
+
+        self.x = np.linspace(new_domain[0], new_domain[1], 100)
+
 
 
 def _trim_non_alpha(string):
