@@ -1,0 +1,29 @@
+name: spectro
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3
+  - pip
+  - numpy
+  - scipy
+  - matplotlib
+  - xlrd
+  - scikit-learn
+  - imbalanced-learn
+  - pandas
+  - nodejs
+  - jupyter
+  - jupyterlab
+  - fireworks
+  - atomate
+  - pymatgen
+  - ase
+  - nglview
+  - keras
+  - tensorflow
+  - tqdm
+  - docopt
+  - awscli
+  - boto3
+  - pytest
