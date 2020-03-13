@@ -31,13 +31,15 @@ def gauge_polynomial_error(X, Y, poly, error='abs'):
 
     if error.lower() == 'abs':
         errors = np.sum(np.abs(diff))
+    if error.lower() == 'percent':
+        errors = np.sum(np.abs((Y-poly(X))/Y))
     if error.lower() == 'squared':
         errors = np.power(diff, 2)
 
     return errors
 
 
-def polynomialize_by_idx(X, Y, N, deg=2, label_type='size'):
+def polynomialize_by_idx(X, Y, N, deg=2, label_type='size', **kwargs):
     """
 
     :param X: X domain
@@ -63,7 +65,10 @@ def polynomialize_by_idx(X, Y, N, deg=2, label_type='size'):
         x = X[l:r]
         y = Y[l:r]
 
-        cur_poly = np.polynomial.Polynomial.fit(x, y, deg=deg)
+
+        cur_poly, full_data = np.polynomial.Polynomial.fit(x, y, deg=deg, full=True, **kwargs)
+        cur_poly.full_data = full_data
+
         cur_poly.x = x
         cur_poly.y = y
         polynomials.append(cur_poly)

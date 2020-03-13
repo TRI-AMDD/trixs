@@ -1,92 +1,105 @@
-import cv2
-from keras.layers.core import Lambda
 import tensorflow as tf
-from keras.models import clone_model
 import keras.backend as K
 import numpy as np
+import keras
+from keras.layers.core import Lambda
 
-def target_category_loss(x, category_index, nb_classes):
+
+def _target_category_loss(x, category_index, nb_classes):
     return tf.multiply(x, K.one_hot([category_index], nb_classes))
 
-def target_category_loss_output_shape(input_shape):
+def _target_category_loss_output_shape(input_shape):
     return input_shape
 
-def normalize(x):
+def _normalize(x):
     # utility function to normalize a tensor by its L2 norm
     return x / (K.sqrt(K.mean(K.square(x))) + 1e-5)
 
 
-def grad_cam(input_model, image:np.array, category_index:int,
-             kernel_size=8, image_size=100, classes=3):
-    """
+def grad_cam(input_model, image, category_index,failure_warning = False,
+             nb_classes = 3,kernel_size = 8):
+    # V important: make sure that the category index is the same for all examples
+    # Category index is 0, 1, 2
 
-    :param input_model: Keras model.
-    :param image: Input vector
-    :param category_index: Which output classified category you want
-    :param kernel_size: How large the kernel is on your data
-    :param image_size: The size of your image vectors
-    :param classes: Number of unique classifiers classified by the output
-    :return:
-    """
+    if len(image.shape) == 23:
+        image = image.reshape(image.shape[0], image.shape[1], 1)
 
-    # Copy model which will be augmented
-    model = clone_model(input_model)
-    model.set_weights(model.get_weights())
+    # Clone a model to generate grad-cam numbers with
+    model = keras.models.clone_model(input_model)
+    model.set_weights(input_model.get_weights())
 
-    # Add a layer which zeroes out the
-    target_layer = lambda x: target_category_loss(x, category_index, classes)
-
+    # How many classes are used?
+    # generate a new layer to 0 out contributions from other classes
+    target_layer = lambda x: _target_category_loss(x, category_index,
+                                                  nb_classes)
     model.add(Lambda(target_layer,
-                     output_shape=target_category_loss_output_shape))
+                     output_shape=_target_category_loss_output_shape))
 
-    # Compute the final value of the output classifier
+    # The classification score is therefore
+    #  only the output from this final layer
     loss = K.sum(model.layers[-1].output)
 
-    # Assumes that the final convolutional layer is the first one
+    # What is the final convolutional layer?
+    # Here, the first layer. This points to the output
     conv_output = model.layers[0].output
 
-    # Gradients of classifier wrt to the convolution layer's output
-    grads = normalize(K.gradients(loss, conv_output)[0])
-    gradient_function = K.function([model.layers[0].input], [conv_output, grads])
+    # Gradients wrt to the convolution layer's output
+    grads = _normalize(K.gradients(loss, conv_output)[0])
+    # Turn this into a keras function
+    gradient_function = K.function([model.layers[0].input],
+                                   [conv_output, grads])
+    # Now compute the output of the convolutional layer and
+    #  the gradients of the loss wrt them
     output, grads_val = gradient_function([image])
 
-    # Get relevant components of data
-    output, grads_val = output[0, :], grads_val[0, :, :]
-
-    # Take the weights over the gradient's possible values
-    weights = np.mean(grads_val, axis=0)
+    # Mean weights of each kernel
+    weights = np.mean(grads_val, axis=1)
 
     # CAM = Class Activation Map
     cam = np.zeros(output.shape, dtype=np.float32)
-    # Weight the values of the filter by the classifier's values
-    for i in range(len(weights)):
-        cam[:, i] += weights[i] * output[:, i]
 
-    # Take the positive and negative components of the CAM
-    cam_pos = np.maximum(cam, 0)
-    cam_neg = np.minimum(cam, 0)
-    heatvals = cam_pos / np.max(cam_pos)
-    coldvals = -1 *  cam_neg / np.min(cam_neg)
+    for i in range(cam.shape[0]):
+        for j in range(weights.shape[1]):
+            cam[i, :, j] += weights[i, j] * output[i, :, j]
 
-    # Compile final heat and cold map
-    heatmap = np.zeros(image_size)
-    coldmap = np.zeros(image_size)
+    cam = np.maximum(cam, 0)
+    negcam = np.minimum(cam, 0)
 
-    for i in range(image_size-kernel_size):
-        heatmap[i:kernel_size+i] += np.sum[heatvals[i, :]]
-        coldmap[i:kernel_size+i] += np.sum[coldvals[i, :]]
+    if not np.any(cam) and failure_warning:
+        print("WARNING! Grad cam heat map procedure failed; all weighted "
+              "activation was negative.")
+        heatmap = cam
+    else:
+        heatmap = cam / np.max(cam)
 
-    # Normalize contributions
-    for i in range(kernel_size,image_size-kernel_size):
-        heatmap[i] /= kernel_size
-        coldmap[i] /= kernel_size
 
-    # Handle contributions at edges
-    for i in range(kernel_size):
-        heatmap[i] /= (i+1)
-        heatmap[image_size-i] /= (i+1)
+    if not np.any(negcam) and failure_warning:
+        print("WARNING! Grad cam cold map procedure failed; all weighted "
+              "activation was positive.")
+        coldmap = negcam
+    else:
+        coldmap = negcam / np.min(negcam)
 
-        coldmap[i] /= (i+1)
-        coldmap[image_size-i] /= (i+1)
 
-    return heatmap, coldmap
+    heat_domain = np.zeros((cam.shape[0], 100))
+    cold_domain = np.zeros((cam.shape[0], 100))
+
+    for j in range(cam.shape[0]):
+
+        for i in range(100-kernel_size+1):
+            heat_domain[j, i:kernel_size + i] += np.sum(heatmap[j, i, :])
+            cold_domain[j, i:kernel_size + i] += np.sum(coldmap[j, i, :])
+
+        for i in range(kernel_size):
+            heat_domain[j, i] /= (i + 1)
+            heat_domain[j, 99 - i] /= (i + 1)
+            cold_domain[j, i] /= (i + 1)
+            cold_domain[j, 99 - i] /= (i + 1)
+
+        for i in range(kernel_size, 100-kernel_size):
+            heat_domain[j, i] /= kernel_size
+            cold_domain[j, i] /= kernel_size
+
+        heat_domain[j, :] /= np.max(heat_domain[j, :])
+
+    return np.uint8(cam), heatmap, heat_domain, cold_domain

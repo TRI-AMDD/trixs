@@ -91,3 +91,24 @@ def normalize_z(spectrum: Spectrum, in_place: bool = False):
 
     return spectrum
 
+
+def normalize_0left_1right(spectrum: Spectrum, in_place: bool = False):
+    """
+    Normalize by setting the input value to 0 and the final value to about 1.
+    :param spectrum: 
+    :param in_place: 
+    :return: 
+    """
+
+    to_sub = spectrum.y[0]
+
+    if not in_place:
+        spectrum = spectrum.copy
+
+    spectrum.y -= to_sub
+
+    spectrum_final_avg = np.mean[spectrum.y[-5:]]
+
+    spectrum.y /= spectrum_final_avg
+
+    return spectrum
