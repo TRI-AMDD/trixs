@@ -1,5 +1,5 @@
 # TRIXS
-## Toyta Research Institute X-ray Spectroscopy 
+## Toyota Research Institute X-ray Spectroscopy 
 
 A suite of tools to enable analysis, comparison, classifcation, and active learning on XAS data as a part of Toyota Research Institute's 
 collaboration with JCAP and LBNL.
@@ -7,12 +7,14 @@ collaboration with JCAP and LBNL.
 
 ## How to install
 
-The packages required for this repo can be found in requirements.
+The packages required for this repo can be found in requirements.txt.
+
 
 ## Data to use
 
-The Data used to
-
+The data used to generate the figures found in [1] are publically available at 
+TRI's 
+https://data.matr.io/ .
 
 
 
