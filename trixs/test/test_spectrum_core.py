@@ -211,12 +211,11 @@ def test_broaden_spectrum():
     spec = XAS_Spectrum(x, y)
     assert x[-1]-x[0] == 1.0
 
-    spec.broaden_spectrum(0)
+    spec.broaden_spectrum_mult(0)
     assert spec.x[-1]-spec.x[0] == 1.0
 
 
-    spec.broaden_spectrum(.05)
-    print(spec.x[-1] - spec.x[0])
+    spec.broaden_spectrum_mult(.05)
     assert np.isclose(spec.x[-1] - spec.x[0], 1.05)
 
     assert spec.x[-1] == 1.025
@@ -225,7 +224,7 @@ def test_broaden_spectrum():
     x = np.linspace(0, 1, 100)
     y = np.sin(x)
     spec = XAS_Spectrum(x, y)
-    spec.broaden_spectrum(-.05)
+    spec.broaden_spectrum_mult(-.05)
 
     assert np.isclose(spec.x[-1] - spec.x[0], .95)
     assert spec.x[-1] ==.975

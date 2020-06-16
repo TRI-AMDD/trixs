@@ -106,9 +106,9 @@ def test_0to1_normalization(sample_spectrum):
 
     spec1 = normalize_0left_1right(sample_spectrum)
 
-    normalize_0left_1right(sample_spectrum,in_place=True)
+    normalize_0left_1right(sample_spectrum, in_place=True)
 
-    for spec in [spec1,sample_spectrum]:
+    for spec in [spec1, sample_spectrum]:
         assert isclose(spec.y[0], 0.0)
         assert isclose(np.mean(spec.y[-5:]), 1.0)
 

@@ -1,0 +1,8 @@
+scikit-learn=0.23.1
+pymatgen
+imbalanced-learn
+tqdm
+matplotlib
+scipy
+numpy
+monty
