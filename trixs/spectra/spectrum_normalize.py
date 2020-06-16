@@ -1,18 +1,19 @@
 # coding: utf-8
 """
-Scripts to obtain spectra data from the Materials Project database or other sources.
+Scripts to obtain spectra data from the Materials Project database or
+other sources.
 
 Normalizes a spectrum by a variety of different means.
 Norm and minmax use means defined by
-Zheng, Mathew, Chen et al, NPJ Comp. Mat. 2018.
+Zheng, Mathew, Chen et al, NPJ Comp. Mat. 4, 12 (2018),
+https://doi.org/10.1038/s41524-018-0067-x .
 
 Author: Steven Torrisi
 Toyota Research Institute 2019
 """
 
-from pymatgen.core.spectrum import Spectrum
 import numpy as np
-from copy import deepcopy
+from pymatgen.core.spectrum import Spectrum
 
 
 def normalize_sum(spectrum: Spectrum, value=1.0, in_place: bool = False):
@@ -103,11 +104,11 @@ def normalize_0left_1right(spectrum: Spectrum, in_place: bool = False):
     to_sub = spectrum.y[0]
 
     if not in_place:
-        spectrum = spectrum.copy
+        spectrum = spectrum.copy()
 
     spectrum.y -= to_sub
 
-    spectrum_final_avg = np.mean[spectrum.y[-5:]]
+    spectrum_final_avg = np.mean(spectrum.y[-5:])
 
     spectrum.y /= spectrum_final_avg
 

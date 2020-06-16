@@ -2,28 +2,25 @@
 """
 Contains scripts which help to process spectra from experiment to make it easily comparable.
 
-Some routines below draw from the methods section of Zheng, Mathew, Chen et al, NPJ 2018 Volume 4 Article 12
-Alternate implementations can be found in the Veidt software code by Materials Virtual Lab (PI: Shyue Ping Ong).
+Some routines below draw from the methods section of
+Zheng, Mathew, Chen et al, NPJ Comp. Mat. 4, 12 (2018)
+( https://doi.org/10.1038/s41524-018-0067-x )
+Other implementations can be found in the Veidt software code by Materials
+Virtual Lab : https://github.com/materialsvirtuallab/veidt
 
-Several of the below routines are based on
-methods described in the methods section of Zheng et al, NPJ 2018
-doi:10.1038/s41524-018-0067-x
-
-Methods below copied and modified from:
-https://github.com/materialsvirtuallab/veidt/blob/master/veidt/elsie/spectra_similarity.py
-
-Inspiration for method organization from Pymatgen.
+Methods below are based upon implementations in particular from
+https://github.com/materialsvirtuallab/veidt/blob/master/veidt/elsie
+/spectra_similarity.py .
 
 Author: Steven Torrisi
 Toyota Research Institute 2019
 """
 
 from math import sqrt, log
-from scipy.interpolate import interp1d
 
 import numpy as np
 from pymatgen.core.spectrum import Spectrum
-import math
+from scipy.interpolate import interp1d
 
 
 class Spectral_Comparer(object):
@@ -55,8 +52,9 @@ def determine_overlap_spectra(x1, y1, x2, y2, only_in_overlap=True):
             overlap_energies.append(x)
 
     if len(overlap_energies) == 0:
-        raise ValueError("No overlap energies detected between spectra with min/max energies of "
-                         "{},{} vs {},{}. ".format(xmin1, xmax1, xmin2, xmax2))
+        raise ValueError(
+            "No overlap energies detected between spectra with min/max energies of "
+            "{},{} vs {},{}. ".format(xmin1, xmax1, xmin2, xmax2))
 
     # Prune any repeats by turning into set then sort
     overlap_energies = sorted(list(set(overlap_energies)))
@@ -83,8 +81,10 @@ def determine_overlap_spectra(x1, y1, x2, y2, only_in_overlap=True):
     return Y1, Y2
 
 
-def compare_spectrum(spec1: Spectrum, spec2: Spectrum, method: str, only_in_overlap=True,
-                     alt_x='', alt_y='', shift_1x: float = 0, shift_2x: float = 0):
+def compare_spectrum(spec1: Spectrum, spec2: Spectrum, method: str,
+                     only_in_overlap=True,
+                     alt_x='', alt_y='', shift_1x: float = 0,
+                     shift_2x: float = 0):
     """
     Compare two spectra and return a measure of similarity.
 
@@ -149,7 +149,8 @@ def compare_pearson(X, Y):
     Mom2 = [y - muy for y in Y]
 
     numerator = sum([mo1 * mo2 for mo1, mo2 in zip(Mom1, Mom2)])
-    denominator = sqrt(sum([mo1 ** 2 for mo1 in Mom1]) * sum([mo2 ** 2 for mo2 in Mom2]))
+    denominator = sqrt(
+        sum([mo1 ** 2 for mo1 in Mom1]) * sum([mo2 ** 2 for mo2 in Mom2]))
 
     return numerator / denominator
 
@@ -169,7 +170,7 @@ def compare_city_block(X, Y):
 
 def compare_city_block_avg(X, Y):
     assert len(X) == len(Y)
-    return sum(abs(X - Y))/len(X)
+    return sum(abs(X - Y)) / len(X)
 
 
 def compare_chebyshev(X, Y):
@@ -240,7 +241,8 @@ def compare_harmonic_mean(X, Y):
 
 def compare_cosine(X, Y):
     numerator = sum([x * y for x, y in zip(X, Y)])
-    denominator = sqrt(sum([x ** 2 for x in X])) * sqrt(sum([y ** 2 for y in Y]))
+    denominator = sqrt(sum([x ** 2 for x in X])) * sqrt(
+        sum([y ** 2 for y in Y]))
     return numerator / denominator
 
 
@@ -313,18 +315,23 @@ def compare_jeffreys(X, Y):
 
 
 def compare_jensen_difference(X, Y):
-    return sum([(x * log(abs(x)) + y * log(abs(y))) / 2 - (x + y) / (2 * log((abs(x + y)) / 2)) for x, y in zip(X, Y)])
+    return sum([(x * log(abs(x)) + y * log(abs(y))) / 2 - (x + y) / (
+                2 * log((abs(x + y)) / 2)) for x, y in zip(X, Y)])
 
 
 # Combination Family
 
 def compare_taneja(X, Y):
-    return sum([(x + y) / (2 * log((abs(x + y)) / (2 * sqrt(abs(x * y))))) for x, y in zip(X, Y)])
+    return sum(
+        [(x + y) / (2 * log((abs(x + y)) / (2 * sqrt(abs(x * y))))) for x, y in
+         zip(X, Y)])
 
 
 def compare_kumar_johnson(X, Y):
     # Added tiny numerical stability value
-    return sum([(x ** 2 - y ** 2) ** 2 / (2 * x * y + 1E-5) ** (1.5) for x, y in zip(X, Y)])
+    return sum(
+        [(x ** 2 - y ** 2) ** 2 / (2 * x * y + 1E-5) ** 1.5 for x, y in
+         zip(X, Y)])
 
 
 def compare_l1_linf(X, Y):

@@ -8,11 +8,10 @@ Toyota Research Institute 2019
 
 import matplotlib.pyplot as plt
 from pymatgen.core.spectrum import Spectrum
-from pymatgen.vis.plotters import SpectrumPlotter
 from pymatgen.io.feff.outputs import Xmu
-from matplotlib.patches import Rectangle
+from pymatgen.vis.plotters import SpectrumPlotter
 
-from trixs.spectra.spectrum_compare import normalize_spectrum, compare_spectrum
+from trixs.spectra.spectrum_compare import compare_spectrum
 
 
 def comparison_plot(inp1='feff1.inp', out1='xmu1.dat',
@@ -42,10 +41,8 @@ def comparison_plot(inp1='feff1.inp', out1='xmu1.dat',
     for comparator in ['pearson', 'euclidean', 'cosine', 'ruzicka']:
         comparison_value = compare_spectrum(spec1, spec2, method=comparator)
 
-        extra = Rectangle((0, 0), 1, 1, fc='w', fill=False, edgecolor='none',
-                          linewidth=0)
-
-        cur_plot.plot([], [], ' ', label='{}:{}'.format(comparator, comparison_value))
+        cur_plot.plot([], [], ' ', label='{}:{}'.format(comparator,
+                                                        comparison_value))
 
     plt.legend()
     plt.show()

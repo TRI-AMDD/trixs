@@ -8,6 +8,8 @@ Author: Steven Torrisi
 Toyota Research Institute 2019
 """
 
+from typing import Sequence
+
 import numpy as np
 from pymatgen.core.spectrum import Spectrum
 from pymatgen.core.structure import Structure
@@ -16,6 +18,7 @@ from trixs.spectra.spectrum_normalize import normalize_minmax, normalize_sum, \
 from trixs.spectra.spectrum_compare import compare_spectrum
 from trixs.spectra.util import NumpyEncoder
 from json import dumps, loads
+
 from scipy.interpolate import interp1d
 
 from monty.json import MSONable
@@ -23,9 +26,12 @@ from monty.json import MSONable
 
 class XAS_Spectrum(Spectrum):
 
-    def __init__(self, x, y, structure: Structure = None,
-                 absorbing_site: int = None, absorbing_element: str = None,
-                 edge='K', kind='XANES', full_spectrum: np.array = None,
+    def __init__(self, x: Sequence[float], y: Sequence[float],
+                 structure: Structure = None,
+                 absorbing_site: int = None,
+                 absorbing_element: str = None,
+                 edge: str = 'K', kind: str = 'XANES',
+                 full_spectrum: np.array = None,
                  metadata=None, *args,
                  **kwargs):
         """
@@ -33,7 +39,8 @@ class XAS_Spectrum(Spectrum):
         absorbing atom, and spectroscopy parameters. A metadata dictionary
         can contain other relevant information, like the MP ID.
 
-        Can pass in x and y if only those are known (as they are for MP XAS spectra).
+        Can pass in x and y if only those are known
+        (as they are for MP XAS spectra).
         For atomate spectra, for which all E, E0, k, etc info exists, pass in
         as 'full spectra', in which case x and y will be assigned to E and Mu.
 
@@ -50,7 +57,8 @@ class XAS_Spectrum(Spectrum):
         :param kwargs:
         """
 
-        super().__init__(x, y, structure, absorbing_site, edge, kind, *args, **kwargs)
+        super().__init__(x, y, structure, absorbing_site, edge, kind,
+                         *args, **kwargs)
 
         if structure is not None:
             self.structure = structure
@@ -64,16 +72,16 @@ class XAS_Spectrum(Spectrum):
         self.edge = edge
         self.kind = kind
 
-        self.full_spectrum = np.array(full_spectrum) if full_spectrum is not None else None
+        self.full_spectrum = np.array(full_spectrum) \
+            if full_spectrum is not None else None
         self.metadata = metadata
 
         # Derivative spectra is established when needed
         self._deriv = None
 
     def __str__(self):
-        return '{} for {} absorbing at {}({}) {} edge'.format(self.kind, self.structure.formula,
-                                                              self.absorbing_element, self.absorbing_site,
-                                                              self.kind)
+        return f'{self.kind} for {self.structure.formula} ' \
+               f'absorbing at {self.absorbing_element}({self.absorbing_site})'
 
     def normalize(self, method='sum', value=1):
         """
@@ -97,7 +105,7 @@ class XAS_Spectrum(Spectrum):
             normalize_z_max(self, in_place=True)
 
         else:
-            raise NotImplementedError("Normalization type requested not found.")
+            raise NotImplementedError("Normalization type not found.")
 
     @property
     def dy(self):
@@ -170,11 +178,13 @@ class XAS_Spectrum(Spectrum):
             x = spectrum[:, 0]
             y = spectrum[:, 3]
 
-        spec = XAS_Spectrum(x, y, structure, abs_at_idx, full_spectrum=spectrum)
+        spec = XAS_Spectrum(x, y, structure, abs_at_idx,
+                            full_spectrum=spectrum)
 
         spec.metadata = document.get('metadata')
 
         return spec
+
     def as_dict(self):
 
         thedict = super().as_dict()
@@ -205,7 +215,9 @@ class XAS_Spectrum(Spectrum):
                             iterations: int = 5, narrow_factor=0.1, **kwargs):
         """
         Return the x-value by which to shift the first spectrum in order
-        to maximize the pearson correlation coefficient with the provided spectrum
+        to maximize the pearson correlation coefficient with the
+        provided spectrum.
+
         :param method:
         :param iterations:
         :param narrow_factor:
@@ -227,8 +239,10 @@ class XAS_Spectrum(Spectrum):
             shifts = np.linspace(prev_shift - shift_range,
                                  prev_shift + shift_range, fidelity)
 
-            correlations = [compare_spectrum(self, target_spectrum, method=method,
-                                             shift_1x=shift, **kwargs) for shift in shifts]
+            correlations = [compare_spectrum(self, target_spectrum,
+                                             method=method,
+                                             shift_1x=shift, **kwargs)
+                            for shift in shifts]
 
             best_correlation = max(correlations)
             best_shift = shifts[correlations.index(best_correlation)]
@@ -248,14 +262,18 @@ class XAS_Spectrum(Spectrum):
 
         return np.where(self.y == np.max(self.y))[0][0]
 
-    def project_to_x_range(self, proj_x, alt_x=None, alt_y=None,pad=True):
+    def project_to_x_range(self, proj_x: np.ndarray, alt_x: str=None,
+                           alt_y: str=None,
+                           pad: bool = True):
         """
         Projects the value of the spectrum onto the values of proj_x using
-        cubic interpolation, padding with 0 on the left and extrapolating on the right
+        cubic interpolation, padding with 0 on the left
+        and extrapolating on the right
 
+        :param pad: Pad missing values with 0s. Otherwise extrapolates.
         :param proj_x: The domain of x values to project the spectrum onto
-        :param alt_x:
-        :param alt_y:
+        :param alt_x: Alternate X domain to use
+        :param alt_y: Alternate Y values to use
         :return:
         """
 
@@ -270,7 +288,8 @@ class XAS_Spectrum(Spectrum):
             X = self.x
         else:
             X = alt_x
-        if isinstance(alt_x, str):
+
+        if isinstance(alt_y, str):
 
             if alt_y.lower() == 'mu0':
                 Y = self.mu0
@@ -287,15 +306,18 @@ class XAS_Spectrum(Spectrum):
 
         if pad:
             x_pad = np.array([proj_x[i] for i in range(len(proj_x)) if
-                          proj_x[i] < xmin])
+                              proj_x[i] < xmin])
             y_pad = np.array([0.0] * len(x_pad))
 
             # Return interpolation and extrapolate to right if necessary
-            func = interp1d(np.concatenate((x_pad, X)), np.concatenate((y_pad, Y)),
-                            kind='cubic', fill_value='extrapolate', assume_sorted=True)
+            func = interp1d(np.concatenate((x_pad, X)),
+                            np.concatenate((y_pad, Y)),
+                            kind='cubic', fill_value='extrapolate',
+                            assume_sorted=True)
         else:
             func = interp1d(X, Y,
-                            kind='cubic', fill_value='extrapolate', assume_sorted=True)
+                            kind='cubic', fill_value='extrapolate',
+                            assume_sorted=True)
         # Occasionally the interpolation returns negative values
         # with the left zero-padding, so manually ceil them to 0
         return np.maximum(func(proj_x.round(8)), 0)
@@ -330,34 +352,36 @@ class XAS_Spectrum(Spectrum):
 
     def sanity_check(self):
         """
-        Ensures that the spectrum satisifies two sanity checks; namely, that there are
-        no negative values, and that there are
+        Ensures that the spectrum satisifies two sanity checks; namely,
+        that there are no negative values, and that the spectrum
+        is not near 0 (sometimes occurs for failed calculations).
         :return:
         """
 
         # No negative spectra
         if min(self.y) < -.01:
             return False
-        # Catch weird failure mode where spectrum is near-0 throughout domain
+        # Catch strange observed failure mode where spectrum is near-0
+        # throughout domain
         if np.abs(np.mean(self.y)) < .01:
             return False
 
         return True
 
-    def broaden_spectrum_mult(self,factor: float ):
+    def broaden_spectrum_mult(self, factor: float):
         """
         Returns a broadened form of the spectrum.
 
         :param factor: 0 means no change, .05 means 5 percent broadening, etc.
         :return:
         """
-        current_domain = (min(self.x),max(self.x))
+        current_domain = (min(self.x), max(self.x))
 
         L = current_domain[1] - current_domain[0]
-        new_domain = (current_domain[0]-factor/2*L, current_domain[
-            1]+factor/2*L)
+        new_domain = (current_domain[0] - factor / 2 * L, current_domain[
+            1] + factor / 2 * L)
 
-        self.x = np.linspace(new_domain[0],new_domain[1],100)
+        self.x = np.linspace(new_domain[0], new_domain[1], 100)
 
     def broaden_spectrum_const(self, factor: float):
         """
@@ -372,7 +396,6 @@ class XAS_Spectrum(Spectrum):
             1] + factor / 2)
 
         self.x = np.linspace(new_domain[0], new_domain[1], 100)
-
 
 
 def _trim_non_alpha(string):
@@ -405,8 +428,8 @@ class XAS_Collation(MSONable):
         :param icsd_ids:
         :param mp_spectra:
         :param feff_spectra:
-        :param mp_oxy:
-        :param oqmd_oxy:
+        :param mp_bader:
+        :param oqmd_bader:
         """
         self.structure = structure
         self.mp_id = mp_id
@@ -417,9 +440,11 @@ class XAS_Collation(MSONable):
         self.mp_bader = [] if mp_bader is None else mp_bader
         self.oqmd_bader = [] if oqmd_bader is None else oqmd_bader
 
-        self.elements = set([_trim_non_alpha(str(elt)) for elt in structure.species])
+        self.elements = set([_trim_non_alpha(str(elt))
+                             for elt in structure.species])
         self.associated_ids = {}
-        self.coordination_numbers = [] if coordination_numbers is None else coordination_numbers
+        self.coordination_numbers = [] if coordination_numbers is None \
+            else coordination_numbers
 
     def has_mp_bader(self):
         return bool(len(self.mp_bader))

@@ -1,14 +1,15 @@
 # coding: utf-8
 
-from pymatgen.core.spectrum import Spectrum
-from pymatgen.io.feff.outputs import Xmu
-from numpy import loadtxt
-
 from json import loads
+
+from numpy import loadtxt
+from pymatgen.io.feff.outputs import Xmu
+
 from trixs.spectra.core import XAS_Spectrum
 
 
-def parse_spectrum(output: str, feff_inp: str = '', kind='2dcsv', *args, **kwargs):
+def parse_spectrum(output: str, feff_inp: str = '', kind='2dcsv',
+                   *args, **kwargs):
     """
 
     Open a spectrum file with x as the first column

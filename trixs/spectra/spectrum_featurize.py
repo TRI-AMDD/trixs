@@ -3,13 +3,7 @@
 Featurize spectra by fitting into a set of polynomials or other techniques
 """
 
-from math import sqrt, log
-from scipy.interpolate import interp1d
-
 import numpy as np
-from pymatgen.core.spectrum import Spectrum
-import math
-from trixs.spectra.core import XAS_Spectrum
 
 
 class XAS_Polynomial(object):
@@ -60,10 +54,10 @@ def polynomialize_by_idx(X, Y, N, deg=2, label_type='size', **kwargs):
 
     # Perform fits
     for i in range(N):
-        l = domain_splits[i]
-        r = domain_splits[i + 1]
-        x = X[l:r]
-        y = Y[l:r]
+        left = domain_splits[i]
+        right = domain_splits[i + 1]
+        x = X[left:right]
+        y = Y[left:right]
 
 
         cur_poly, full_data = np.polynomial.Polynomial.fit(x, y, deg=deg, full=True, **kwargs)
@@ -76,7 +70,9 @@ def polynomialize_by_idx(X, Y, N, deg=2, label_type='size', **kwargs):
         if label_type == 'frac':
             cur_poly.label = "deg:{},fraction_size:{},chunk:{}".format(deg, N, i)
         else:
-            cur_poly.label = "deg:{},step_size:{},chunk:{}".format(deg, r - l, i)
+            cur_poly.label = "deg:{},step_size:{},chunk:{}".format(deg,
+                                                                   right -
+                                                                   left, i)
 
     return polynomials
 
