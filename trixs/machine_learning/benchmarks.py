@@ -5,7 +5,7 @@ Copyright Toyota Research Institute, 2019
 """
 
 import numpy as np
-from typing import List
+from typing import List, Sequence, Hashable
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as colors
@@ -13,7 +13,8 @@ import matplotlib as mpl
 from matplotlib.patches import Rectangle
 
 
-def precision_recall(fits: List, labels: List, target):
+
+def precision_recall(fits: List, labels: List, target)->List[float]:
     """
     Computes the precision and recall and F1 score
     for an individual class label 'target',
@@ -26,9 +27,15 @@ def precision_recall(fits: List, labels: List, target):
     N = len(labels)
 
     # Generate the counts of true and false positives
-    true_positives = len([True for i in range(N) if (fits[i] == target and labels[i] == target)])
-    false_positives = len([True for i in range(N) if (fits[i] == target and labels[i] != target)])
-    false_negatives = len([True for i in range(N) if (fits[i] != target and labels[i] == target)])
+    true_positives = len([True for i in range(N)
+                          if (fits[i] == target and labels[i] == target)])
+    false_positives = len([True for i in range(N)
+                           if (fits[i] == target and labels[i] != target)])
+    false_negatives = len([True for i in range(N)
+                           if (fits[i] != target and labels[i] == target)])
+
+    if true_positives == 0:
+        return [0, 0, 0]
 
     precision = true_positives / (true_positives + false_positives)
     recall = true_positives / (true_positives + false_negatives)
@@ -51,7 +58,16 @@ def precision_recall_matrix(fits: List, labels: List, classes: List):
     return np.array(results)
 
 
-def confusion_dict(fits, labels, classes):
+def confusion_dict(fits, labels, classes: Sequence[Hashable]):
+    """
+    Generate a confusion matrix in dictionary representation,
+    counting the classification error by category.
+
+    :param fits:
+    :param labels:
+    :param classes:
+    :return:
+    """
     score = {cls: [0] * len(classes) for cls in classes}
     cls_idxs = {cls: classes.index(cls) for cls in classes}
 
