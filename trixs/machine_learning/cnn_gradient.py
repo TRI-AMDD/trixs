@@ -2,6 +2,10 @@
 
 Helper functions to take the gradient of a CNN
 
+
+Copyright 2018-2020 Toyota Resarch Institute. All rights reserved.
+Use of this source code is governed by an Apache 2.0
+license that can be found in the LICENSE file.
 """
 
 import numpy as np

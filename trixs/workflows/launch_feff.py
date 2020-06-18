@@ -3,8 +3,11 @@
 Scripts to point-and-shoot create Atomate workflows for structures.
 
 Author: Steven Torrisi
-Toyota Research Institute 2019
+Copyright 2018-2020 Toyota Resarch Institute. All rights reserved.
+Use of this source code is governed by an Apache 2.0
+license that can be found in the LICENSE file.
 """
+
 
 
 from fireworks.core.launchpad import LaunchPad

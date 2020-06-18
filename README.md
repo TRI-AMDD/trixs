@@ -49,3 +49,6 @@ Institute during Summer 2019. While their names may not show up in the
 contributors tab, the feedback of Matthew Carbone, Santosh Suram, and Joseph
  Montoyta were useful in shaping the design of the code in this repository.
 
+*Copyright 2018-2020 Toyota Resarch Institute. All rights reserved.
+Use of this source code is governed by an Apache 2.0
+license that can be found in the LICENSE file.*

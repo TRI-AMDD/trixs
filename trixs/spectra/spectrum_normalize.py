@@ -9,7 +9,10 @@ Zheng, Mathew, Chen et al, NPJ Comp. Mat. 4, 12 (2018),
 https://doi.org/10.1038/s41524-018-0067-x .
 
 Author: Steven Torrisi
-Toyota Research Institute 2019
+
+Copyright 2018-2020 Toyota Resarch Institute. All rights reserved.
+Use of this source code is governed by an Apache 2.0
+license that can be found in the LICENSE file.
 """
 
 import numpy as np
