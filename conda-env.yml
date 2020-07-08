@@ -1,4 +1,4 @@
-name: spectro
+name: trixs
 channels:
   - conda-forge
   - defaults
