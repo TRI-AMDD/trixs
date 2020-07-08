@@ -27,7 +27,7 @@ The packages required for this repo can be found in requirements.txt.
 ## Compatible dataset
 
 The data used to generate the figures found in [1] are publically available at TRI's 
-[https://data.matr.io/](https://data.matr.io/).
+[https://data.matr.io/4/](https://data.matr.io/4/).
 
 
 # Citation
