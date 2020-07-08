@@ -16,7 +16,7 @@ If you want to develop TRIXS, clone the repo via git and use
 `python setup.py develop` for an editable install, or use pip:
 
 ```bash
-git clone git@github.com:LindaHung-TRI/trixs.git
+git clone git@github.com:TRI-AMDD/trixs.git
 cd trixs
 pip install -e .
 ```

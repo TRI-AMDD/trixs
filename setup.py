@@ -23,8 +23,7 @@ setup(name="trixs",
                         "tqdm",
                         "matplotlib",
                         "scipy",
-                        "numpy",
-                        "monty"
+                        "numpy"
                         ],
       extras_require={
           "tests": ["pytest",
