@@ -1,29 +1,13 @@
 # Copyright 2019-2020 Toyota Research Institute. All rights reserved.
 
-from tqdm import tqdm, tqdm_notebook
-from sklearn.feature_selection import SelectFromModel
-from pprint import pprint
-import json
-import os
 import numpy as np
-import sklearn
-import pandas as pd
-import numpy as np
-rseed = 42
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, StratifiedKFold
-from sklearn.ensemble import RandomForestRegressor
-import matplotlib.cm as cm
 import matplotlib.colors as colors
-import collections
-import matplotlib.gridspec as gridspec
-import matplotlib as mpl
-from matplotlib.collections import LineCollection
+import matplotlib.patches as patches
 import scipy.special as spec
 from scipy.stats import norm
 
-import matplotlib.patches as patches
-
+rseed = 42
 
 def label_to_color_codex(label):
     """

@@ -1,18 +1,20 @@
 # Copyright 2019-2020 Toyota Research Institute. All rights reserved.
 
-import pytest
+import os
 import numpy as np
 from trixs.spectra.spectrum_io import parse_spectrum
-
 from trixs.spectra.spectrum_normalize import normalize_sum, normalize_l2, normalize_max, \
     normalize_minmax, normalize_z, normalize_0left_1right
-
 from math import isclose
+from pytest import fixture
+
+TEST_DIR = os.path.dirname(__file__)
+TEST_FILE_DIR = os.path.join(TEST_DIR, 'test_files')
 
 
-@pytest.fixture
+@fixture
 def sample_spectrum():
-    yield parse_spectrum('test_files/sample_spectrum_a.txt', skiprows=1)
+    yield parse_spectrum(os.path.join(TEST_FILE_DIR, 'sample_spectrum_a.txt'), skiprows=1)
 
 
 def test_sum_normalization(sample_spectrum):

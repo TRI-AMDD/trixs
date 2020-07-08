@@ -1,6 +1,5 @@
 # Copyright 2019-2020 Toyota Research Institute. All rights reserved.
 
-import numpy as np
 import matplotlib.colors as colors
 import matplotlib.cm as mplcm
 import matplotlib.patches as mpatches

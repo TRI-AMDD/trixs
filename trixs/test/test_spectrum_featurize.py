@@ -1,9 +1,6 @@
 # Copyright 2019-2020 Toyota Research Institute. All rights reserved.
 
-from math import isclose
-
 import numpy as np
-
 from trixs.spectra.spectrum_featurize import polynomialize_by_idx,\
                                         gauge_polynomial_error
 

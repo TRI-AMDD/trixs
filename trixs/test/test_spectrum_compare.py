@@ -1,15 +1,14 @@
 # Copyright 2019-2020 Toyota Research Institute. All rights reserved.
 
-from math import isclose
-
+import os
 import numpy as np
-
+from math import isclose
 from trixs.spectra.spectrum_compare import compare_spectrum, compare_euclidean, compare_pearson
 from trixs.spectra.spectrum_io import parse_spectrum
-
 from trixs.spectra.spectrum_compare import get_all_comparisons
 
-
+TEST_DIR = os.path.dirname(__file__)
+TEST_FILE_DIR = os.path.join(TEST_DIR, 'test_files')
 
 
 def test_compare_euclidean():
@@ -29,8 +28,8 @@ def test_compare_euclidean():
 
 
 def test_run_comparison_function():
-    a = parse_spectrum('./test_files/sample_spectrum_a.txt', skiprows=1)
-    b = parse_spectrum("./test_files/sample_spectrum_b.txt", skiprows=1)
+    a = parse_spectrum(os.path.join(TEST_FILE_DIR, 'sample_spectrum_a.txt'), skiprows=1)
+    b = parse_spectrum(os.path.join(TEST_FILE_DIR, 'sample_spectrum_b.txt'), skiprows=1)
 
     compare_spectrum(a, b, method='pearson')
 
@@ -49,11 +48,8 @@ def test_compare_pearson():
 
 
 def test_run_comparison_function_alt_x():
-    # a = parse_spectrum('./test_files/sample_spectrum_a.txt', skiprows=1)
-    # b = parse_spectrum("./test_files/sample_spectrum_b.txt", skiprows=1)
-
-    c = parse_spectrum('./test_files/sample_spectrum_c.txt', kind='json')
-    d = parse_spectrum('./test_files/sample_spectrum_d.txt', kind='json')
+    c = parse_spectrum(os.path.join(TEST_FILE_DIR, 'sample_spectrum_c.txt'), kind='json')
+    d = parse_spectrum(os.path.join(TEST_FILE_DIR, 'sample_spectrum_d.txt'), kind='json')
 
     compare_spectrum(c, c, method='pearson', alt_x='Enorm')
 
@@ -64,8 +60,8 @@ def test_run_comparison_function_alt_x():
 
 
 def test_all_comparisons():
-    a = parse_spectrum('./test_files/sample_spectrum_a.txt', skiprows=1)
-    b = parse_spectrum("./test_files/sample_spectrum_b.txt", skiprows=1)
+    a = parse_spectrum(os.path.join(TEST_FILE_DIR, 'sample_spectrum_a.txt'), skiprows=1)
+    b = parse_spectrum(os.path.join(TEST_FILE_DIR, 'sample_spectrum_b.txt'), skiprows=1)
 
     all_comparisons = get_all_comparisons()
 
