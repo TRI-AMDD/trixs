@@ -30,7 +30,11 @@ setup(name="trixs",
           "tests": ["pytest",
                     "pytest-cov",
                     "coveralls",
-                    "memory_profiler"]
+                    "memory_profiler"],
+          "dev": ["pytest",
+                  "ipywidgets",
+                  "jupyterlab",
+                  "twine"]
       },
       entry_points={
           "console_scripts": [

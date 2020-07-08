@@ -3,5 +3,5 @@ __pycache__
 .ipynb_checkpoints
 .DS
 .idea
-training_data
-xas_references
+venv
+*.egg-info
