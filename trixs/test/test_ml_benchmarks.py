@@ -1,8 +1,5 @@
-"""
-Copyright 2018-2020 Toyota Resarch Institute. All rights reserved.
-Use of this source code is governed by an Apache 2.0
-license that can be found in the LICENSE file.
-"""
+# Copyright 2019-2020 Toyota Research Institute. All rights reserved.
+
 import pytest
 import numpy as np
 from trixs.spectra.spectrum_io import parse_spectrum

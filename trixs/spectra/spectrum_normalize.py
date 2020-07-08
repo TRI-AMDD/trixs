@@ -1,4 +1,5 @@
-# coding: utf-8
+# Copyright 2019-2020 Toyota Research Institute. All rights reserved.
+
 """
 Scripts to obtain spectra data from the Materials Project database or
 other sources.
@@ -7,12 +8,6 @@ Normalizes a spectrum by a variety of different means.
 Norm and minmax use means defined by
 Zheng, Mathew, Chen et al, NPJ Comp. Mat. 4, 12 (2018),
 https://doi.org/10.1038/s41524-018-0067-x .
-
-Author: Steven Torrisi
-
-Copyright 2018-2020 Toyota Resarch Institute. All rights reserved.
-Use of this source code is governed by an Apache 2.0
-license that can be found in the LICENSE file.
 """
 
 import numpy as np

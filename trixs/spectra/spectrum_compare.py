@@ -1,4 +1,5 @@
-# coding: utf-8
+# Copyright 2019-2020 Toyota Research Institute. All rights reserved.
+
 """
 Contains scripts which help to process spectra from experiment to make it easily comparable.
 
@@ -11,14 +12,6 @@ Virtual Lab : https://github.com/materialsvirtuallab/veidt
 Methods below are based upon implementations in particular from
 https://github.com/materialsvirtuallab/veidt/blob/master/veidt/elsie
 /spectra_similarity.py .
-
-Author: Steven Torrisi
-
-
-Copyright 2018-2020 Toyota Resarch Institute. All rights reserved.
-Use of this source code is governed by an Apache 2.0
-license that can be found in the LICENSE file.
-
 """
 
 from math import sqrt, log
