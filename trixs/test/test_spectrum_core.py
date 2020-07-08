@@ -3,8 +3,6 @@
 """
 Defines a new XAS Spectrum object built on top of Pymatgen's
 Spectrum object.
-
-Author: Steven Torrisi
 """
 
 import numpy as np
