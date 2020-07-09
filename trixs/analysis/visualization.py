@@ -1,17 +1,10 @@
-"""
-Copyright 2018-2020 Toyota Resarch Institute. All rights reserved.
-Use of this source code is governed by an Apache 2.0
-license that can be found in the LICENSE file.
-"""
+# Copyright 2019-2020 Toyota Research Institute. All rights reserved.
+
 from pymatgen.io.ase import AseAtomsAdaptor
 from ase.build.supercells import make_supercell
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from nglview import show_ase
 import numpy as np
-import matplotlib.colors as colors
-import matplotlib.cm as mplcm
-import matplotlib.patches as mpatches
-from typing import List
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from trixs.spectra.spectrum_compare import compare_spectrum

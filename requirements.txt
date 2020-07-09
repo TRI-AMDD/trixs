@@ -5,4 +5,3 @@ tqdm
 matplotlib
 scipy
 numpy
-monty

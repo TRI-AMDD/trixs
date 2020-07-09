@@ -1,17 +1,6 @@
-"""
-Copyright 2018-2020 Toyota Resarch Institute. All rights reserved.
-Use of this source code is governed by an Apache 2.0
-license that can be found in the LICENSE file.
-"""
-import pytest
+# Copyright 2019-2020 Toyota Research Institute. All rights reserved.
+
 import numpy as np
-from trixs.spectra.spectrum_io import parse_spectrum
-
-from trixs.spectra.spectrum_normalize import normalize_sum, normalize_l2, normalize_max, \
-    normalize_minmax, normalize_z
-
-from math import isclose
-
 from trixs.machine_learning.benchmarks import precision_recall, precision_recall_matrix, confusion_dict
 
 
@@ -41,7 +30,6 @@ def test_precision_recall():
     assert pr1[2] == 2*pr1[0]*pr1[1] / (pr1[0]+pr1[1])
 
     assert (precision_recall_matrix(guesses,truth,[0,1]) == np.array([pr0,pr1])).all()
-
 
 
 def test_confusion_dict():

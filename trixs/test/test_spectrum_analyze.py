@@ -1,24 +1,22 @@
-# coding: utf-8
+# Copyright 2019-2020 Toyota Research Institute. All rights reserved.
+
 """
 Unit tests for spectrum analyze methods
-
-Author: Steven Torrisi
-Copyright 2018-2020 Toyota Resarch Institute. All rights reserved.
-Use of this source code is governed by an Apache 2.0
-license that can be found in the LICENSE file.
 """
 
+import os
 from trixs.spectra.spectrum_io import parse_spectrum
 from trixs.spectra.spectrum_compare import compare_spectrum
-
-import pytest
-
 from math import isclose
+from pytest import fixture
+
+TEST_DIR = os.path.dirname(__file__)
+TEST_FILE_DIR = os.path.join(TEST_DIR, 'test_files')
 
 # TODO Roll this into future tests
-@pytest.fixture
+@fixture
 def sample_spectrum():
-    return parse_spectrum('test_files/sample_spectrum_a.txt', skiprows=1)
+    return parse_spectrum(os.path.join(TEST_FILE_DIR, 'sample_spectrum_a.txt'), skiprows=1)
 
 
 def test_spectrum_comparison_basic():
@@ -27,9 +25,9 @@ def test_spectrum_comparison_basic():
     are running
     :return:
     """
-    specA = parse_spectrum('test_files/sample_spectrum_a.txt', skiprows=1)
+    specA = parse_spectrum(os.path.join(TEST_FILE_DIR, 'sample_spectrum_a.txt'), skiprows=1)
 
-    specB = parse_spectrum('test_files/sample_spectrum_b.txt', skiprows=1)
+    specB = parse_spectrum(os.path.join(TEST_FILE_DIR, 'sample_spectrum_b.txt'), skiprows=1)
 
     pers_aa = compare_spectrum(specA, specA, 'pearson')
     eucl_aa = compare_spectrum(specA, specA, 'euclidean')

@@ -1,14 +1,13 @@
-"""
-Copyright 2018-2020 Toyota Resarch Institute. All rights reserved.
-Use of this source code is governed by an Apache 2.0
-license that can be found in the LICENSE file.
-"""
-# coding: utf-8
+# Copyright 2019-2020 Toyota Research Institute. All rights reserved.
 
-import pytest
+import os
+from pytest import fixture
 from trixs.spectra.spectrum_io import parse_spectrum
 from pymatgen.core.spectrum import Spectrum
 from trixs.spectra.core import XAS_Spectrum
+
+TEST_DIR = os.path.dirname(__file__)
+TEST_FILE_DIR = os.path.join(TEST_DIR, 'test_files')
 
 
 def test_parse_spectrum():
@@ -18,7 +17,7 @@ def test_parse_spectrum():
     :return:
     """
 
-    speca = parse_spectrum('test_files/sample_spectrum_a.txt', skiprows=1)
+    speca = parse_spectrum(os.path.join(TEST_FILE_DIR, 'sample_spectrum_a.txt'), skiprows=1)
     assert isinstance(speca, Spectrum)
     assert len(speca) == 417
     assert speca.x[0] == 7570
@@ -26,14 +25,14 @@ def test_parse_spectrum():
     assert speca.y[0] == 0.00267023
     assert speca.y[-1] == 0.9949
 
-    specb = parse_spectrum('test_files/sample_spectrum_b.txt', skiprows=1)
+    specb = parse_spectrum(os.path.join(TEST_FILE_DIR, 'sample_spectrum_b.txt'), skiprows=1)
     assert isinstance(specb, Spectrum)
     assert len(specb) == 417
 
 
-# TODO Grab a random test spectrum
+# TODO Grab a random tests spectrum
 
-@pytest.fixture
+@fixture
 def random_spectrum():
     raise NotImplementedError
 
@@ -45,7 +44,7 @@ def test_parse_spectrum_json():
     :return:
     """
 
-    specc = parse_spectrum('test_files/sample_spectrum_c.txt', kind='json')
+    specc = parse_spectrum(os.path.join(TEST_FILE_DIR, 'sample_spectrum_c.txt'), kind='json')
 
     # print(specc.full_spectrum)
 

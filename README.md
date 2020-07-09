@@ -1,21 +1,33 @@
 # TRIXS
 ## Toyota Research Institute X-ray Spectroscopy 
 
-A suite of tools to enable analysis, comparison, classifcation, and active learning on XAS data as a part of Toyota Research Institute's 
-collaboration with JCAP and LBNL.
+A suite of tools that enables analysis, comparison, and machine learning
+on X-ray spectroscopy measurements.
+Currently available tools focus on X-ray absorption spectroscopy, 
+particularly XANES spectra,  and have been developed at the 
+[Toyota Research Institute](http://www.tri.global/accelerated-materials-design-and-discovery/).
 
 
-## How to install
+## Installation
+
+Use `pip install trixs` to install.
+
+If you want to develop TRIXS, clone the repo via git and use 
+`python setup.py develop` for an editable install, or use pip:
+
+```bash
+git clone git@github.com:TRI-AMDD/trixs.git
+cd trixs
+pip install -e .
+```
 
 The packages required for this repo can be found in requirements.txt.
 
 
-## Data to use
+## Compatible dataset
 
-The data used to generate the figures found in [1] are publically available at 
-TRI's 
-https://data.matr.io/ .
-
+The data used to generate the figures found in [1] are publically available at TRI's 
+[https://data.matr.io/4/](https://data.matr.io/4/).
 
 
 # Citation
@@ -44,11 +56,7 @@ Mater. Sci. 139**,
 
 
 ### Acknowledgements
-This repo was principally written by Steven B. Torrisi at Toyota Research 
+This repository was created by Steven B. Torrisi at the Toyota Research 
 Institute during Summer 2019. While their names may not show up in the 
 contributors tab, the feedback of Matthew Carbone, Santosh Suram, and Joseph
- Montoyta were useful in shaping the design of the code in this repository.
-
-*Copyright 2018-2020 Toyota Resarch Institute. All rights reserved.
-Use of this source code is governed by an Apache 2.0
-license that can be found in the LICENSE file.*
+Montoya were useful in shaping the initial design of the code in this repository.

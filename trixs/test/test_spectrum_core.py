@@ -1,16 +1,11 @@
-# coding: utf-8
-"""
+# Copyright 2019-2020 Toyota Research Institute. All rights reserved.
 
+"""
 Defines a new XAS Spectrum object built on top of Pymatgen's
 Spectrum object.
-
-Author: Steven Torrisi
-
-Copyright 2018-2020 Toyota Resarch Institute. All rights reserved.
-Use of this source code is governed by an Apache 2.0
-license that can be found in the LICENSE file.
 """
 
+import os
 import numpy as np
 from pymatgen.core.structure import Structure
 from trixs.spectra.core import XAS_Spectrum, XAS_Collation
@@ -18,8 +13,10 @@ from trixs.spectra.spectrum_io import parse_spectrum
 from copy import deepcopy
 from numpy import eye
 from pytest import fixture, raises
-from unittest import TestCase
 from json import loads, dumps
+
+TEST_DIR = os.path.dirname(__file__)
+TEST_FILE_DIR = os.path.join(TEST_DIR, 'test_files')
 
 
 @fixture
@@ -55,7 +52,7 @@ def test_XAS_full_spec_attributes():
     x = np.random.uniform(size=100)
     y = np.random.uniform(size=100)
 
-    structure = Structure.from_file('./test_files/Cu_structure.cif')
+    structure = Structure.from_file(os.path.join(TEST_FILE_DIR, 'Cu_structure.cif'))
 
     absorbing_site = 0
 
@@ -99,7 +96,7 @@ def test_exceptions(fake_spectrum):
 
 def test_load_from_doc_and_object():
 
-    with open('./test_files/sample_spectrum_e.txt','r') as f:
+    with open(os.path.join(TEST_FILE_DIR, 'sample_spectrum_e.txt'), 'r') as f:
         data = loads(f.readline())
 
     spec1 = XAS_Spectrum.from_atomate_document(data)
@@ -178,7 +175,7 @@ def test_XAS_Spectrum_methods(fake_spectrum):
 
 
 def test_XAS_shift():
-    spec1 = parse_spectrum('test_files/sample_spectrum_c.txt', kind='json')
+    spec1 = parse_spectrum(os.path.join(TEST_FILE_DIR, 'sample_spectrum_c.txt'), kind='json')
 
     spec2 = deepcopy(spec1)
 
