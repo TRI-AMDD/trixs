@@ -12,7 +12,7 @@ Currently available tools focus on X-ray absorption spectroscopy, particularly X
 
 setup(name="trixs",
       url="https://github.com/TRI-AMDD/trixs",
-      version="2020.7.8b",
+      version="2020.7.8",
       description=DESCRIPTION,
       long_description=LONG_DESCRIPTION,
       long_description_content_type='text/markdown',
