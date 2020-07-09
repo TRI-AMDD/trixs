@@ -2,7 +2,7 @@
 ## Toyota Research Institute X-ray Spectroscopy 
 
 A suite of tools that enables analysis, comparison, and machine learning
-on X-ray spectroscopy measurements.
+for X-ray spectroscopy measurements.
 Currently available tools focus on X-ray absorption spectroscopy, 
 particularly XANES spectra,  and have been developed at the 
 [Toyota Research Institute](http://www.tri.global/accelerated-materials-design-and-discovery/).
