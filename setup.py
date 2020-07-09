@@ -1,18 +1,18 @@
 from setuptools import setup, find_packages
 
 # DESCRIPTION must be one line
-DESCRIPTION = "TRIXS is a python package enabling analysis and machine learning for X-ray spectroscopy."
+DESCRIPTION = "Data analysis and machine learning for X-ray spectroscopy"
 LONG_DESCRIPTION = """
-TRIXS is a suite of tools to enable analysis, comparison, and machine learning
-on X-ray spectroscopy measurements, developed at the 
-[Toyota Research Institute](http://www.tri.global/accelerated-materials-design-and-discovery/).
-Current tools focus on X-ray absorption spectroscopy, and are part of a project in
-collaboration with JCAP and LBNL.
+[Toyota Research Institute](http://www.tri.global/accelerated-materials-design-and-discovery/)
+ X-ray Spectroscopy (TRIXS) is a suite of tools that enables analysis, comparison, and machine learning
+for X-ray spectroscopy measurements.
+Currently available tools focus on X-ray absorption spectroscopy, particularly XANES spectra.
+
 """
 
 setup(name="trixs",
       url="https://github.com/TRI-AMDD/trixs",
-      version="2020.7.7",
+      version="2020.7.8b",
       description=DESCRIPTION,
       long_description=LONG_DESCRIPTION,
       long_description_content_type='text/markdown',
@@ -33,6 +33,8 @@ setup(name="trixs",
           "dev": ["pytest",
                   "ipywidgets",
                   "jupyterlab",
+                  "setuptools",
+                  "wheel",
                   "twine"]
       },
       entry_points={
