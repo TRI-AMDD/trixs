@@ -57,9 +57,8 @@ class XAS_Spectrum(Spectrum):
         super().__init__(x, y, structure, absorbing_site, edge, kind,
                          *args, **kwargs)
 
-        if structure is not None:
-            self.structure = structure
-            self.absorbing_site = absorbing_site
+        self.structure = structure
+        self.absorbing_site = absorbing_site
 
         if absorbing_element is None and structure is not None:
             self.absorbing_element = str(structure.species[absorbing_site])
