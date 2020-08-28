@@ -9,6 +9,8 @@ Zheng, Mathew, Chen et al, NPJ Comp. Mat. 4, 12 (2018)
 Other implementations can be found in the Veidt software code by Materials
 Virtual Lab : https://github.com/materialsvirtuallab/veidt
 
+Others are drawn from: https://apps.dtic.mil/sti/pdfs/AD1026967.pdf
+
 Methods below are based upon implementations in particular from
 https://github.com/materialsvirtuallab/veidt/blob/master/veidt/elsie
 /spectra_similarity.py .
