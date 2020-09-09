@@ -76,12 +76,17 @@ class XAS_Spectrum(Spectrum):
         self._deriv = None
 
     def __str__(self):
+        the_str = ""
         if self.structure is not None:
-            return f'{self.kind} for {self.structure.formula} ' \
-               f'absorbing at {self.absorbing_element}({self.absorbing_site})'
-        else:
-            return f'{self.kind} for {self.structure.formula} ' \
-               f'absorbing at {self.absorbing_element}({self.absorbing_site})'
+            the_str += f"Compound:{self.structure.formula},"
+        if self.absorbing_element:
+            the_str +=f"Absorber:{self.absorbing_element},"
+        if self.absorbing_site:
+            the_str +=f"Site:{self.absorbing_site},"
+        if self.kind:
+            the_str +=f"Kind:{self.kind}"
+
+        return the_str
 
     def normalize(self, method='sum', value=1):
         """
